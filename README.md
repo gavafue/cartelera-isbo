@@ -103,11 +103,11 @@ Al tratarse de una arquitectura estática sin base de datos ni servidor backend,
    git add .
    git commit -m "Cartelera Digital ISBO - Versión Producción"
    git branch -M main
-   git remote add origin https://github.com/TU_USUARIO/cartelera-isbo.git
+   git remote add origin https://github.com/gavafue/cartelera-isbo.git
    git push -u origin main
    ```
 2. En GitHub, ve a **Settings** -> **Pages** -> En *Branch* selecciona `main` y guarda.
-3. En menos de un minuto tu aplicación estará disponible en `https://TU_USUARIO.github.io/cartelera-isbo/`.
+3. En menos de un minuto tu aplicación estará disponible en `https://gavafue.github.io/cartelera-isbo/`.
 
 ---
 
