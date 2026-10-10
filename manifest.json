@@ -1,0 +1,18 @@
+{
+  "name": "Cartelera Digital ISBO",
+  "short_name": "ISBO Cartelera",
+  "description": "Cartelera institucional de inasistencias docentes y comunicados para el Instituto Superior Brazo Oriental",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#00489A",
+  "theme_color": "#00489A",
+  "icons": [
+    {
+      "src": "logo-isbo.jpg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

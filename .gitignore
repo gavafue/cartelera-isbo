@@ -1,0 +1,15 @@
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+
+# Descargas e instaladores accidentales
+*.rpm
+*.deb
+*.crdownload
+*.part
+
+# Entornos y backups
+.env
+*.bak
+*.tmp
+node_modules/

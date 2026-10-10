@@ -1,0 +1,335 @@
+/**
+ * ============================================================================
+ * Módulo: sheet.js
+ * Responsabilidad: Conexión tolerante a fallos con Google Sheets:
+ *                   - Mapeo dinámico de columnas (detecta nombres, grupos, fechas y avisos).
+ *                   - Parser ultra-robusto de fechas y rangos escritos a mano.
+ *                   - Extracción limpia de docentes y comunicados.
+ * ============================================================================
+ */
+
+window.SheetAPI = (function () {
+  const SPREADSHEET_ID = '1t83h87_A01gSG518nU7QtpCGMNHR7kRbB900l-18TIk';
+
+  // Diccionario completo de meses en español (incluye variantes rioplatenses como 'setiembre')
+  const MESES = {
+    ene: 0, enero: 0,
+    feb: 1, febrero: 1,
+    mar: 2, marzo: 2,
+    abr: 3, abril: 3,
+    may: 4, mayo: 4,
+    jun: 5, junio: 5,
+    jul: 6, julio: 6,
+    ago: 7, agosto: 7,
+    set: 8, sep: 8, sept: 8, setiembre: 8, septiembre: 8,
+    oct: 9, octubre: 9,
+    nov: 10, noviembre: 10,
+    dic: 11, diciembre: 11
+  };
+
+  /**
+   * Parser ultra-robusto de fechas:
+   * Capaz de interpretar cualquier formato ingresado por el personal administrativo:
+   * - Seriales de Excel/Sheets (ej: 46303)
+   * - Google Sheets: Date(2026, 9, 8)
+   * - Numéricos: 08/10/2026, 8/10/2026, 08-10-2026, 8.10.26, 8/10
+   * - Escritos: '8 de octubre', '08 de oct', 'jueves 8 de octubre', '8 oct 26'
+   * - Palabras clave: 'hoy', 'solo hoy', 'por hoy', 'mañana'
+   * - ISO: 2026-10-08
+   */
+  function parsearFechaToken(val, refDate = new Date()) {
+    if (!val) return null;
+    if (val instanceof Date && !isNaN(val.getTime())) return val;
+
+    // Números seriales de Excel/Sheets (días desde 1899-12-30)
+    if (typeof val === 'number') {
+      if (val > 30000 && val < 60000) {
+        return new Date((val - 25569) * 86400 * 1000);
+      }
+      return new Date(val);
+    }
+
+    let str = String(val).trim().toLowerCase();
+    if (!str) return null;
+
+    // Quitar nombres de días en español que suelen agregar (ej: 'jueves 8 de octubre')
+    str = str.replace(/^(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+/i, '');
+
+    // Palabras clave relativas
+    if (str.includes('hoy')) {
+      const hoy = new Date(refDate);
+      hoy.setHours(0, 0, 0, 0);
+      return hoy;
+    }
+    if (str.includes('mañana')) {
+      const manana = new Date(refDate);
+      manana.setDate(manana.getDate() + 1);
+      manana.setHours(0, 0, 0, 0);
+      return manana;
+    }
+
+    // Caso 1: Objeto Google Sheets Date(y, m, d)
+    const gvizMatch = str.match(/date\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (gvizMatch) {
+      return new Date(parseInt(gvizMatch[1], 10), parseInt(gvizMatch[2], 10), parseInt(gvizMatch[3], 10));
+    }
+
+    const anioActual = refDate.getFullYear();
+
+    // Caso 2: Texto con nombre de mes: '8 de octubre', '8 oct', '08-oct-2026', '8 de setiembre'
+    const textoMesMatch = str.match(/(\d{1,2})\s*(?:de|\/|-|\.)?\s*([a-záéíóú]{3,10})\s*(?:de|\/|-|\.)?\s*(\d{2,4})?/i);
+    if (textoMesMatch) {
+      const dia = parseInt(textoMesMatch[1], 10);
+      const mesLimpio = textoMesMatch[2].normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      let mesIdx = -1;
+      for (const [clave, idx] of Object.entries(MESES)) {
+        if (mesLimpio.startsWith(clave)) {
+          mesIdx = idx;
+          break;
+        }
+      }
+      if (mesIdx !== -1) {
+        let anio = anioActual;
+        if (textoMesMatch[3]) {
+          anio = parseInt(textoMesMatch[3], 10);
+          if (anio < 100) anio += 2000;
+        }
+        return new Date(anio, mesIdx, dia);
+      }
+    }
+
+    // Caso 3: Formato numérico separado por /, -, ., o espacios
+    const partes = str.replace(/[^0-9\/\-\.]/g, ' ').split(/[\/\-\.\s]+/).filter(Boolean);
+    if (partes.length >= 2) {
+      // Formato ISO: AAAA-MM-DD
+      if (partes[0].length === 4) {
+        const y = parseInt(partes[0], 10);
+        const m = parseInt(partes[1], 10) - 1;
+        const d = parseInt(partes[2], 10);
+        return new Date(y, m, d);
+      }
+
+      // Formato día / mes / año
+      const dia = parseInt(partes[0], 10);
+      const mes = parseInt(partes[1], 10) - 1;
+      let anio = anioActual;
+
+      if (partes.length >= 3) {
+        anio = parseInt(partes[2], 10);
+        if (anio < 100) anio += 2000; // '26' -> 2026
+      }
+
+      if (!isNaN(dia) && !isNaN(mes) && dia >= 1 && dia <= 31 && mes >= 0 && mes <= 11) {
+        return new Date(anio, mes, dia);
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extrae fechas desde dos celdas o desde una celda que contiene un rango escrito:
+   * Ejemplo: Celda 'Desde' contiene "del 5 al 8 de octubre" y 'Hasta' está vacía.
+   */
+  function parsearRangoFechas(celdaDesde, celdaHasta, refDate = new Date()) {
+    let desde = parsearFechaToken(celdaDesde, refDate);
+    let hasta = parsearFechaToken(celdaHasta, refDate);
+
+    // Si 'hasta' está vacía pero 'desde' contiene un rango textual completo
+    if (!hasta && celdaDesde && typeof celdaDesde === 'string') {
+      const s = celdaDesde.trim().toLowerCase();
+      // Detectar expresiones como "del 5 al 8/10", "5/10 al 14/10", "5 a 8 de oct"
+      const matchRango = s.match(/(?:del?\s+)?(.+?)\s+(?:al?|-)\s+(.+)/i);
+      if (matchRango) {
+        const d1 = parsearFechaToken(matchRango[1], refDate);
+        const d2 = parsearFechaToken(matchRango[2], refDate);
+        if (d1 || d2) {
+          desde = d1 || desde;
+          hasta = d2 || hasta;
+        }
+      }
+    }
+
+    return { desde, hasta };
+  }
+
+  /**
+   * Detección dinámica y tolerante del encabezado y mapeo de columnas:
+   * Evita fallos si Bedelía inserta o mueve columnas en la planilla.
+   */
+  function detectarMapeoColumnas(rows) {
+    let colNombre = 0;
+    let colGrupo = 1;
+    let colDesde = 2;
+    let colHasta = 3;
+    let colAvisos = 5;
+    let filaInicioDatos = 1;
+
+    for (let rIdx = 0; rIdx < Math.min(rows.length, 4); rIdx++) {
+      const row = rows[rIdx];
+      if (!row || !row.c) continue;
+
+      let coincidencias = 0;
+      row.c.forEach((cell, cIdx) => {
+        if (!cell) return;
+        const val = String(cell.f || cell.v || '').trim().toLowerCase();
+        // Los encabezados son etiquetas breves (menos de 25 caracteres)
+        if (!val || val.length > 25) return;
+
+        if (val.includes('nombre') || val.includes('docente') || val.includes('profesor') || val.includes('prof.')) {
+          colNombre = cIdx;
+          coincidencias++;
+        } else if ((val.includes('grupo') || val.includes('curso') || val === 'clase' || val === 'clases') && !val.includes('no hay')) {
+          colGrupo = cIdx;
+          coincidencias++;
+        } else if (val.includes('desde') || val.includes('inicio') || val === 'del') {
+          colDesde = cIdx;
+          coincidencias++;
+        } else if (val.includes('hasta') || val.includes('fin') || val === 'al') {
+          colHasta = cIdx;
+          coincidencias++;
+        } else if (val.includes('aviso') || val.includes('comunicado') || val.includes('atenci') || val.includes('novedad')) {
+          colAvisos = cIdx;
+        }
+      });
+
+      if (coincidencias >= 2) {
+        filaInicioDatos = rIdx + 1;
+        break;
+      }
+    }
+
+    return { colNombre, colGrupo, colDesde, colHasta, colAvisos, filaInicioDatos };
+  }
+
+  // Procesa las filas crudas descargadas de Google Sheets
+  function procesarFilas(rows) {
+    const docentes = [];
+    const avisosSet = new Set();
+    let fechaTexto = '';
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { fechaTexto, docentes, avisos: [] };
+    }
+
+    // 1. Detección inteligente de columnas
+    const mapeo = detectarMapeoColumnas(rows);
+
+    // 2. Extraer fecha oficial si la planilla tiene celda "Hoy es..."
+    rows.forEach(r => {
+      if (!r || !r.c) return;
+      r.c.forEach(cell => {
+        if (!cell) return;
+        const v = String(cell.f || cell.v || '').trim();
+        if (v.toLowerCase().includes('hoy es')) {
+          fechaTexto = v;
+        }
+      });
+    });
+
+    // 3. Procesar filas de docentes y avisos
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r.c) continue;
+
+      // Obtener valores de texto crudo de las celdas
+      const obtenerVal = (col) => {
+        const cell = r.c[col];
+        if (!cell) return '';
+        return String(cell.f || cell.v || '').trim();
+      };
+
+      const rawNombre = obtenerVal(mapeo.colNombre);
+      const rawGrupo = obtenerVal(mapeo.colGrupo);
+      const rawDesde = obtenerVal(mapeo.colDesde);
+      const rawHasta = obtenerVal(mapeo.colHasta);
+
+      // Solo procesar como docente si la fila está dentro del rango de datos
+      if (i < mapeo.filaInicioDatos) continue;
+
+      // Filtrar filas inválidas o de encabezado
+      const lowerNom = rawNombre.toLowerCase();
+      const esInvalido = !rawNombre ||
+        rawNombre.length < 3 ||
+        lowerNom.includes('nombre') ||
+        lowerNom.includes('apellido') ||
+        lowerNom.includes('docente') ||
+        lowerNom.includes('profesor') ||
+        lowerNom.includes('fecha') ||
+        lowerNom.includes('hoy es') ||
+        lowerNom.includes('total') ||
+        lowerNom.includes('firma');
+
+      if (esInvalido) continue;
+
+      // Parsear fechas y posibles rangos
+      const { desde, hasta } = parsearRangoFechas(rawDesde, rawHasta);
+
+      docentes.push({
+        id: i,
+        nombre: rawNombre,
+        grupo: rawGrupo || 'TODOS',
+        desde,
+        hasta,
+        rawDesde,
+        rawHasta
+      });
+    }
+
+    // Los avisos institucionales ahora se gestionan exclusivamente desde el formulario
+    return {
+      fechaTexto,
+      docentes,
+      avisos: []
+    };
+  }
+
+  // Descarga los datos mediante JSONP (sin problemas de CORS en navegadores)
+  function cargarJSONP(sheetId) {
+    return new Promise((resolve, reject) => {
+      const nombreCallback = 'callback_sheets_' + Math.floor(Math.random() * 1000000);
+      const script = document.createElement('script');
+
+      window[nombreCallback] = function (respuesta) {
+        try {
+          const resultado = procesarFilas(respuesta?.table?.rows || []);
+          resolve(resultado);
+        } catch (e) {
+          reject(e);
+        } finally {
+          script.remove();
+          delete window[nombreCallback];
+        }
+      };
+
+      script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${nombreCallback}&headers=0`;
+      script.onerror = () => {
+        script.remove();
+        delete window[nombreCallback];
+        reject(new Error('No se pudo cargar la hoja mediante JSONP'));
+      };
+
+      document.head.appendChild(script);
+    });
+  }
+
+  // Obtiene los datos de Google Sheets con fallback directo a fetch
+  async function obtenerDatos() {
+    try {
+      return await cargarJSONP(SPREADSHEET_ID);
+    } catch (err) {
+      console.warn('Fallo JSONP, intentando fetch directo:', err);
+      const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&headers=0`;
+      const res = await fetch(url);
+      const texto = await res.text();
+      const json = JSON.parse(texto.replace(/^[\s\S]*setResponse\(/, '').replace(/\);?\s*$/, ''));
+      return procesarFilas(json?.table?.rows || []);
+    }
+  }
+
+  return {
+    obtenerDatos,
+    parsearFecha: parsearFechaToken,
+    parsearRangoFechas
+  };
+})();

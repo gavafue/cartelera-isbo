@@ -1,0 +1,58 @@
+/* ==========================================================================
+   Estilos Cartelera Escolar ISBO - Pantalla Informativa TV / Tótem
+   ========================================================================== */
+
+/* Evitar selección accidental de texto en pantalla pública pero permitir en campos */
+* {
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+}
+
+input, textarea, select {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* Animación del cintillo horizontal inferior (News Ticker) */
+@keyframes marquee-horizontal {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee-h {
+  display: flex;
+  width: max-content;
+  animation: marquee-horizontal 40s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-h:hover {
+  animation-play-state: paused;
+}
+
+/* Animación de desplazamiento vertical suave si hay muchos docentes */
+@keyframes marquee-vertical {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.animate-marquee-v {
+  animation: marquee-vertical 28s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-v:hover {
+  animation-play-state: paused;
+}
+
+/* Pulso del indicador en línea */
+@keyframes pulse-radar {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.pulse-radar {
+  animation: pulse-radar 2s infinite;
+}
