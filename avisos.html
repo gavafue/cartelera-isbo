@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ISBO Bedelía - Portal de Gestión de Avisos</title>
+  <title>Panel de Administración de Avisos - ISBO</title>
   <link rel="icon" type="image/jpeg" href="logo-isbo.jpg">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#00489A">
@@ -18,20 +18,20 @@
 <body class="min-h-screen bg-[#F1F5F9] font-sans text-slate-800 antialiased flex flex-col">
 
   <!-- ========================================================================= -->
-  <!-- 1. ENCABEZADO SUPERIOR DEL PORTAL ADMINISTRATIVO                          -->
+  <!-- 1. ENCABEZADO SUPERIOR: PANEL DE ADMINISTRACIÓN DE AVISOS                 -->
   <!-- ========================================================================= -->
   <header class="bg-[#00489A] text-white border-b-2 border-[#F8E124] shadow-md shrink-0 sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-6 py-2.5 flex items-center justify-between gap-4">
       
-      <!-- Logo y Título -->
+      <!-- Logo y Título Oficial -->
       <div class="flex items-center gap-3">
         <img src="logo-isbo.jpg" alt="Logo ISBO" class="h-9 w-9 rounded-lg object-contain shadow-sm border border-white/20 bg-[#00489A]">
         <div>
           <div class="flex items-center gap-2">
-            <span class="text-xl font-black text-white">ISBO Bedelía</span>
-            <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-black/20 text-[#F8E124] border border-[#F8E124]/30">Portal Administrativo</span>
+            <span class="text-lg sm:text-xl font-black text-white">Panel de Administración de Avisos</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-black/20 text-[#F8E124] border border-[#F8E124]/30 hidden sm:inline">Administrativos y Adscriptos</span>
           </div>
-          <p class="text-[11px] text-sky-100">Ingreso y Gestión de Avisos Institucionales</p>
+          <p class="text-[11px] text-sky-100">ISBO · Instituto Superior Brazo Oriental</p>
         </div>
       </div>
 
@@ -40,7 +40,7 @@
         <!-- Indicador de Sincronización en Vivo -->
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs text-sky-200" id="widget-sync-admin">
           <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" id="dot-sync-admin"></span>
-          <span id="txt-sync-admin">Sheets y TV en vivo</span>
+          <span id="txt-sync-admin">Sheets y Pantalla en vivo</span>
           <span class="text-sky-300/70 text-[11px] font-mono hidden md:inline" id="hora-sync-admin">--:--:--</span>
         </div>
 
@@ -50,9 +50,9 @@
           <span class="hidden sm:inline">Revisar Sheets</span>
         </button>
 
-        <a href="index.html" target="_blank" class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition-all" title="Abrir la pantalla de TV en una nueva pestaña">
+        <a href="index.html" target="_blank" class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition-all" title="Abrir la Pantalla de Inasistencias en una nueva pestaña">
           <span class="material-symbols-outlined text-base">tv</span>
-          <span class="hidden sm:inline">Ver Pantalla TV</span>
+          <span class="hidden sm:inline">Ver Pantalla de Inasistencias</span>
         </a>
       </div>
     </div>
@@ -68,10 +68,10 @@
       <div class="space-y-1">
         <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
           <span class="material-symbols-outlined text-amber-500 text-3xl">campaign</span>
-          Publicar Nuevo Aviso Institucional
+          Publicar Comunicado en la Pantalla de Inasistencias
         </h1>
         <p class="text-sm text-slate-500">
-          Los comunicados que ingreses aquí aparecerán inmediatamente en la columna derecha de la <strong>Pantalla TV de pasillo</strong> y rotarán de forma continua.
+          Gestión de avisos para el personal administrativo y cuerpo de adscriptos. Los comunicados aparecerán de inmediato en la <strong>Pantalla de Inasistencias</strong> del pasillo.
         </p>
       </div>
 
@@ -110,6 +110,37 @@
         <form id="form-aviso" class="space-y-6">
           <!-- Campo oculto para ID de aviso al editar -->
           <input type="hidden" id="aviso-id" value="">
+
+          <!-- Plantillas Rápidas para Adscriptos y Administrativos -->
+          <div class="bg-gradient-to-r from-sky-50 to-indigo-50/50 border border-sky-200/80 rounded-xl p-3.5">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-black uppercase tracking-wider text-sky-900 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-base text-amber-500">bolt</span>
+                Plantillas Frecuentes (Adscripción y Bedelía)
+              </span>
+              <span class="text-[10px] font-semibold text-sky-700 bg-white/80 px-2 py-0.5 rounded-full border border-sky-200">1 clic para completar</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5 text-xs">
+              <button type="button" class="btn-plantilla px-2.5 py-1.5 rounded-lg bg-white hover:bg-red-50 text-red-700 border border-red-200 font-bold transition-all shadow-xs hover:border-red-400 cursor-pointer flex items-center gap-1" data-categoria="urgente" data-titulo="Retiro Anticipado: " data-mensaje="Por inasistencia docente en las últimas horas, el grupo [Indicar Grupo] se retira hoy a las [Hora].">
+                <span>⚡</span> <span>Retiro Anticipado</span>
+              </button>
+              <button type="button" class="btn-plantilla px-2.5 py-1.5 rounded-lg bg-white hover:bg-amber-50 text-amber-800 border border-amber-200 font-bold transition-all shadow-xs hover:border-amber-400 cursor-pointer flex items-center gap-1" data-categoria="atencion" data-titulo="Cambio de Aula / Taller: " data-mensaje="El grupo [Indicar Grupo] tendrá clase hoy en [Indicar Taller / Salón] en lugar del aula asignada.">
+                <span>🏫</span> <span>Cambio de Aula</span>
+              </button>
+              <button type="button" class="btn-plantilla px-2.5 py-1.5 rounded-lg bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 font-bold transition-all shadow-xs hover:border-amber-500 cursor-pointer flex items-center gap-1" data-categoria="examenes" data-titulo="Inscripciones a Exámenes: " data-mensaje="Período de inscripciones a exámenes extraordinarios habilitado hasta el [Fecha]. Requisitos y actas en Bedelía.">
+                <span>📝</span> <span>Exámenes</span>
+              </button>
+              <button type="button" class="btn-plantilla px-2.5 py-1.5 rounded-lg bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold transition-all shadow-xs hover:border-emerald-400 cursor-pointer flex items-center gap-1" data-categoria="tramites" data-titulo="Boletos de Transporte STM" data-mensaje="Habilitada la gestión de boletos estudiantiles gratuitos. Consultar en Adscripción o escanear el código QR.">
+                <span>🚌</span> <span>Boletos STM</span>
+              </button>
+              <button type="button" class="btn-plantilla px-2.5 py-1.5 rounded-lg bg-white hover:bg-purple-50 text-purple-800 border border-purple-200 font-bold transition-all shadow-xs hover:border-purple-400 cursor-pointer flex items-center gap-1" data-categoria="avisos" data-titulo="Entrega de Carné de Salud" data-mensaje="Presentación obligatoria de Ficha Médica / Carné del Adolescente en Adscripción antes del [Fecha].">
+                <span>📋</span> <span>Carné de Salud</span>
+              </button>
+              <button type="button" class="btn-plantilla px-2.5 py-1.5 rounded-lg bg-white hover:bg-red-50 text-red-800 border border-red-300 font-bold transition-all shadow-xs hover:border-red-500 cursor-pointer flex items-center gap-1" data-categoria="urgente" data-titulo="Jornada de ATD: Sin Clases" data-mensaje="Viernes [Fecha]: Sin dictado de clases presenciales por realización de Asamblea Técnico Docente (ATD).">
+                <span>⛔</span> <span>Asamblea ATD</span>
+              </button>
+            </div>
+          </div>
           
           <!-- 1. Título -->
           <div>
