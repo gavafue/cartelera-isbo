@@ -14,7 +14,7 @@ El proyecto está organizado en la ruta directa `~/cartelera-isbo` con arquitect
 ```text
 cartelera-isbo/
 ├── index.html          # 📺 VISTA PÚBLICA / PANTALLA TV (100% inmersiva, limpia, sin iconos técnicos ni botones administrativos)
-├── avisos.html         # 📝 PORTAL DE BEDELÍA (Panel administrativo: redactar, editar, pausar, buscar, QR y respaldos)
+├── avisos.html         # 📝 PANEL DE ADMINISTRACIÓN DE AVISOS (Gestión para adscriptos y administrativos: redactar, editar, pausar, buscar, QR y respaldos)
 ├── avisos.json         # 📦 Plantilla base de comunicados institucionales predeterminados
 ├── logo-isbo.jpg       # 🏛️ Escudo oficial de la institución en alta resolución
 ├── manifest.json       # 📱 Web App Manifest para instalación como PWA y modo quiosco en Smart TVs / Tablets
@@ -29,7 +29,7 @@ cartelera-isbo/
     ├── inasistencias.js# Lógica de ausencias de hoy, normalizador de grupos (2mk -> 2° MK) y persistencia
     ├── ui.js           # Renderizado visual de docentes, badges de grupos, marquesina y reloj digital
     ├── app.js          # Orquestador de la Pantalla TV con caché local tolerante a cortes de internet
-    └── avisos-admin.js # Lógica del panel de Bedelía: generador de QR, buscador, filtros y respaldos JSON
+    └── avisos-admin.js # Lógica del panel de administración: generador de QR, buscador, filtros y respaldos JSON
 ```
 
 ---
@@ -51,8 +51,8 @@ cartelera-isbo/
 * **Normalización Tolerante de Grupos:**
   * Interpreta abreviaciones administrativas (`2mk`, `2°mk`, `1mm`, `FPB 1`, `3 ma`) y las transforma en insignias estandarizadas (`2° MK`, `1° MM`). Todas las variantes de *"todos"* se unifican en `TODOS LOS GRUPOS`.
 
-### 2. 📝 Portal de Gestión de Bedelía (`avisos.html`)
-* **Super Intuitivo y Diseñado para Funcionarios Escolares:**
+### 2. 📝 Panel de Administración de Avisos (`avisos.html`)
+* **Super Intuitivo y Diseñado para Funcionarios Escolares (Adscripción y Bedelía):**
   * **Contador de caracteres en tiempo real:** Control visual del título (máx. 65 caracteres) y cuerpo del mensaje.
   * **Generación Automática de Códigos QR:** Escribe o pega cualquier enlace web (trámite, inscripción, circular) y el QR se genera al instante con contraste óptimo para cámaras de teléfonos móviles apuntando a la TV.
   * **6 Categorías Educativas Oficiales:**
@@ -114,4 +114,4 @@ Al tratarse de una arquitectura estática sin base de datos ni servidor backend,
 ## 🖥️ Configuración en la Pantalla TV del Pasillo
 1. En el navegador del equipo conectado a la TV (PC pasillo, Raspberry Pi o Smart TV), abre `index.html` (o la URL desplegada en internet).
 2. Presiona `F11` (o el botón en pantalla) para activar **Pantalla Completa**.
-3. ¡Listo! La pantalla se actualizará automáticamente cada 25 segundos con los datos de Google Sheets y en tiempo real con los avisos cargados desde Bedelía.
+3. ¡Listo! La pantalla se actualizará automáticamente cada 25 segundos con los datos de Google Sheets y en tiempo real con los avisos cargados desde el Panel de Administración de Avisos.
