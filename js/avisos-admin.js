@@ -644,31 +644,6 @@
       r.addEventListener('change', actualizarVistaPrevia);
     });
 
-    // 1.1 Plantillas Rápidas para Adscripción y Bedelía
-    document.querySelectorAll('.btn-plantilla').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const cat = btn.getAttribute('data-categoria');
-        const tit = btn.getAttribute('data-titulo') || '';
-        const msg = btn.getAttribute('data-mensaje') || '';
-
-        // Seleccionar radio de categoría
-        const radio = document.querySelector(`input[name="prioridad"][value="${cat}"]`);
-        if (radio) radio.checked = true;
-
-        if (inputTitulo) inputTitulo.value = tit;
-        if (inputMensaje) inputMensaje.value = msg;
-
-        actualizarContadores();
-        actualizarVistaPrevia();
-
-        if (inputTitulo) {
-          inputTitulo.focus();
-          inputTitulo.setSelectionRange(tit.length, tit.length);
-        }
-
-        mostrarToast('Plantilla aplicada. Completa los datos entre corchetes.', 'info');
-      });
-    });
 
     // 2. Control de Toggle Código QR
     if (inputToggleQr && contenedorQrEnlace) {
