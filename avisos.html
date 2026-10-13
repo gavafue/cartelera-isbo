@@ -18,6 +18,58 @@
 <body class="min-h-screen bg-[#F1F5F9] font-sans text-slate-800 antialiased flex flex-col">
 
   <!-- ========================================================================= -->
+  <!-- 0. MODAL DE ACCESO ADMINISTRATIVO (LOGIN INSTITUCIONAL)                   -->
+  <!-- ========================================================================= -->
+  <div id="auth-overlay" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 transition-opacity duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl border-2 border-slate-200 max-w-md w-full p-7 sm:p-9 relative">
+      <div class="text-center mb-6">
+        <img src="logo-isbo.jpg" alt="Logo ISBO" class="h-16 w-16 mx-auto rounded-2xl object-contain shadow-md border-2 border-[#00489A]/20 bg-[#00489A] mb-3">
+        <h2 class="text-xl font-black text-slate-900 tracking-tight">Acceso Administrativo</h2>
+        <p class="text-xs text-slate-500 mt-1">Gestión de Avisos y Cartelera · ISBO</p>
+      </div>
+
+      <form id="form-login" class="space-y-4">
+        <div>
+          <label for="login-usuario" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            Usuario
+          </label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">person</span>
+            <input type="text" id="login-usuario" autocomplete="username" required placeholder="Usuario institucional" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/70">
+          </div>
+        </div>
+
+        <div>
+          <label for="login-password" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            Contraseña
+          </label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">lock</span>
+            <input type="password" id="login-password" autocomplete="current-password" required placeholder="••••••••" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/70">
+          </div>
+        </div>
+
+        <div id="login-error" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined text-base shrink-0">error</span>
+          <span>Usuario o contraseña incorrectos.</span>
+        </div>
+
+        <button type="submit" class="w-full py-3 px-4 rounded-xl bg-[#00489A] hover:bg-[#003878] text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-2">
+          <span class="material-symbols-outlined text-lg">login</span>
+          <span>Ingresar al Panel</span>
+        </button>
+
+        <div class="pt-3 text-center border-t border-slate-100">
+          <a href="index.html" class="inline-flex items-center gap-1.5 text-xs font-bold text-sky-700 hover:text-sky-900 transition-colors">
+            <span class="material-symbols-outlined text-sm">arrow_back</span>
+            <span>Volver a la Pantalla de Inasistencias</span>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
   <!-- 1. ENCABEZADO SUPERIOR: PANEL DE ADMINISTRACIÓN DE AVISOS                 -->
   <!-- ========================================================================= -->
   <header class="bg-[#00489A] text-white border-b-2 border-[#F8E124] shadow-md shrink-0 sticky top-0 z-40">
@@ -35,25 +87,17 @@
         </div>
       </div>
 
-      <!-- Estado de Sincronización y Acciones -->
+      <!-- Acciones de Cabecera -->
       <div class="flex items-center gap-2.5">
-        <!-- Indicador de Sincronización en Vivo -->
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs text-sky-200" id="widget-sync-admin">
-          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" id="dot-sync-admin"></span>
-          <span id="txt-sync-admin">Sheets y Pantalla en vivo</span>
-          <span class="text-sky-300/70 text-[11px] font-mono hidden md:inline" id="hora-sync-admin">--:--:--</span>
-        </div>
-
-        <!-- Botón para forzar actualización inmediata de la planilla -->
-        <button type="button" id="btn-sync-ahora" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer border border-white/20" title="Revisar cambios de la planilla Google Sheets ahora">
-          <span class="material-symbols-outlined text-base">sync</span>
-          <span class="hidden sm:inline">Revisar Sheets</span>
-        </button>
-
         <a href="index.html" target="_blank" class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition-all" title="Abrir la Pantalla de Inasistencias en una nueva pestaña">
           <span class="material-symbols-outlined text-base">tv</span>
           <span class="hidden sm:inline">Ver Pantalla de Inasistencias</span>
         </a>
+
+        <button type="button" id="btn-logout" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600/80 hover:bg-red-600 text-white font-bold text-xs transition-all cursor-pointer border border-red-400/30" title="Cerrar sesión de administración">
+          <span class="material-symbols-outlined text-base">logout</span>
+          <span class="hidden sm:inline">Cerrar Sesión</span>
+        </button>
       </div>
     </div>
   </header>
@@ -89,72 +133,7 @@
       </div>
     </div>
 
-    <!-- Panel de Enlace con Google Sheets (Google Apps Script) -->
-    <div class="mb-8 p-5 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3.5">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div class="flex items-center gap-2.5">
-          <div class="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0">
-            <span class="material-symbols-outlined text-xl">table_chart</span>
-          </div>
-          <div>
-            <h2 class="text-sm font-black text-slate-900 flex items-center gap-2">
-              <span>Sincronización con tu Hoja de Google Sheets</span>
-              <span id="badge-script-status" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
-                Pendiente Enlazar
-              </span>
-            </h2>
-            <p class="text-xs text-slate-500">Permite que cada aviso publicado desde este formulario se guarde de inmediato en tu pestaña <strong>Avisos</strong>.</p>
-          </div>
-        </div>
 
-        <button type="button" id="btn-toggle-guia-script" class="text-xs font-bold text-sky-700 hover:text-sky-800 flex items-center gap-1 self-start sm:self-auto cursor-pointer">
-          <span class="material-symbols-outlined text-base">help_outline</span>
-          <span>¿Cómo obtener la URL? (1 minuto)</span>
-        </button>
-      </div>
-
-      <!-- Formulario para ingresar / guardar la URL del Web App de Apps Script -->
-      <div class="flex flex-col sm:flex-row items-stretch gap-2 pt-1">
-        <div class="relative flex-1">
-          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">link</span>
-          <input type="url" id="input-apps-script-url" placeholder="Pega aquí la URL de la Aplicación web de Google Apps Script (https://script.google.com/macros/s/.../exec)" class="w-full pl-9 pr-3 py-2 rounded-xl border-2 border-slate-200 text-xs font-mono font-medium focus:border-emerald-600 focus:outline-none text-slate-800 bg-slate-50 transition-colors">
-        </div>
-        <button type="button" id="btn-guardar-script-url" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
-          <span class="material-symbols-outlined text-base">save</span>
-          <span>Conectar Planilla</span>
-        </button>
-      </div>
-
-      <!-- Guía desplegable de 3 pasos -->
-      <div id="guia-script-box" class="hidden p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-3">
-        <p class="font-bold text-slate-900">3 pasos sencillos para que el formulario guarde en tu Google Sheets:</p>
-        <ol class="list-decimal list-inside space-y-1.5 text-slate-600 leading-relaxed">
-          <li>Abre tu planilla de Google Sheets y en el menú superior ve a <strong>Extensiones ➔ Apps Script</strong>.</li>
-          <li>Borra cualquier código que aparezca y pega el siguiente script:</li>
-        </ol>
-        <pre class="p-3 bg-slate-900 text-emerald-400 rounded-lg text-[11px] font-mono overflow-x-auto select-all">function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, status: "online" })).setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("Avisos") || ss.insertSheet("Avisos");
-  var data = JSON.parse(e.postData.contents);
-  var avisos = Array.isArray(data) ? data : (data.avisos || [data]);
-  sheet.clearContents();
-  sheet.appendRow(["Título", "Mensaje", "Categoría", "Enlace QR", "Activo", "Fecha"]);
-  for (var i = 0; i < avisos.length; i++) {
-    var a = avisos[i];
-    if (!a.titulo && !a.mensaje) continue;
-    sheet.appendRow([a.titulo || "", a.mensaje || "", a.prioridad || "avisos", a.qrUrl || "", a.activo !== false ? "SI" : "NO", a.fechaCreacion || new Date().toISOString()]);
-  }
-  return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
-}</pre>
-        <ol class="list-decimal list-inside space-y-1.5 text-slate-600 leading-relaxed" start="3">
-          <li>Haz clic arriba a la derecha en <strong>Implementar ➔ Nueva implementación</strong>, selecciona tipo <strong>Aplicación web</strong>, en <em>Quién tiene acceso</em> elige <strong>Cualquiera</strong> y pulsa <strong>Implementar</strong>. Copia la URL que termina en <code>/exec</code> y pégala arriba.</li>
-        </ol>
-      </div>
-    </div>
 
     <!-- Grid de 2 Columnas -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -407,17 +386,8 @@ function doPost(e) {
                 <button type="button" class="filtro-btn px-2.5 py-1 rounded-lg font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors" data-filtro="pausados">En Pausa</button>
               </div>
 
-              <!-- Herramientas de Respaldo -->
+              <!-- Herramientas de Limpieza -->
               <div class="flex items-center gap-1.5">
-                <button type="button" id="btn-exportar-json" class="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-sky-700 hover:bg-sky-50 border border-slate-200 transition-colors cursor-pointer" title="Descargar copia de respaldo en archivo JSON">
-                  <span class="material-symbols-outlined text-sm text-sky-600">download</span>
-                  <span class="hidden sm:inline">Exportar</span>
-                </button>
-                <label for="input-archivo-importar" class="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-sky-700 hover:bg-sky-50 border border-slate-200 transition-colors cursor-pointer" title="Cargar respaldo desde archivo JSON">
-                  <span class="material-symbols-outlined text-sm text-emerald-600">upload</span>
-                  <span class="hidden sm:inline">Importar</span>
-                  <input type="file" id="input-archivo-importar" accept=".json,application/json" class="hidden">
-                </label>
                 <button type="button" id="btn-restaurar-base" class="p-1 rounded-lg text-slate-500 hover:text-red-700 hover:bg-red-50 border border-slate-200 transition-colors cursor-pointer" title="Vaciar todos los comunicados">
                   <span class="material-symbols-outlined text-sm">delete_sweep</span>
                 </button>
@@ -445,9 +415,9 @@ function doPost(e) {
   <!-- 4. SCRIPTS MODULARIZADOS VANILLA                                          -->
   <!-- ========================================================================= -->
   <script src="js/qrcode.min.js"></script>
-  <script src="js/sheet.js?v=3.1"></script>
-  <script src="js/inasistencias.js?v=3.1"></script>
-  <script src="js/avisos-admin.js?v=3.1"></script>
+  <script src="js/sheet.js?v=3.2"></script>
+  <script src="js/inasistencias.js?v=3.2"></script>
+  <script src="js/avisos-admin.js?v=3.2"></script>
 
 </body>
 </html>

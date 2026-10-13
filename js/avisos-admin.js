@@ -13,6 +13,24 @@
  */
 
 (function () {
+  // ============================================================================
+  // CREDENCIALES DE ACCESO ADMINISTRATIVO (Actualizables año a año)
+  // Usuario y contraseña genérica institucional para Adscripción y Bedelía
+  // ============================================================================
+  const CREDENCIALES_ADMIN = {
+    usuario: 'isboadmin',
+    password: 'avisos1sb0'
+  };
+  const STORAGE_AUTH_KEY = 'isbo_admin_auth';
+
+  // Elementos de Autenticación
+  const authOverlay = document.getElementById('auth-overlay');
+  const formLogin = document.getElementById('form-login');
+  const inputLoginUsuario = document.getElementById('login-usuario');
+  const inputLoginPassword = document.getElementById('login-password');
+  const loginError = document.getElementById('login-error');
+  const btnLogout = document.getElementById('btn-logout');
+
   // Elementos del formulario y modo edición
   const form = document.getElementById('form-aviso');
   const inputAvisoId = document.getElementById('aviso-id');
@@ -47,23 +65,8 @@
   // Herramientas de filtrado y búsqueda
   const busquedaAvisos = document.getElementById('busqueda-avisos');
   const btnLimpiarBusqueda = document.getElementById('btn-limpiar-busqueda');
-  const btnExportarJson = document.getElementById('btn-exportar-json');
-  const inputArchivoImportar = document.getElementById('input-archivo-importar');
   const contadorTitulo = document.getElementById('contador-titulo');
   const contadorMensaje = document.getElementById('contador-mensaje');
-
-  // Elementos de integración directa con Google Apps Script Web App
-  const inputAppsScriptUrl = document.getElementById('input-apps-script-url');
-  const btnGuardarScriptUrl = document.getElementById('btn-guardar-script-url');
-  const badgeScriptStatus = document.getElementById('badge-script-status');
-  const btnToggleGuiaScript = document.getElementById('btn-toggle-guia-script');
-  const guiaScriptBox = document.getElementById('guia-script-box');
-
-  // Elementos de sincronización con Google Sheets
-  const dotSyncAdmin = document.getElementById('dot-sync-admin');
-  const txtSyncAdmin = document.getElementById('txt-sync-admin');
-  const horaSyncAdmin = document.getElementById('hora-sync-admin');
-  const btnSyncAhora = document.getElementById('btn-sync-ahora');
 
   // Constantes de temporización
   const INTERVALO_SYNC_SHEETS_MS = 25 * 1000; // Revisar planilla cada 25 segundos
@@ -397,7 +400,7 @@
       listaAvisosActivos.innerHTML = `
         <div class="p-6 text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl">
           <span class="material-symbols-outlined text-slate-400 text-4xl mb-1">speaker_notes_off</span>
-          <p class="text-sm font-bold text-slate-700">No hay comunicados cargados</p>
+          <p class="text-sm font-bold text-slate-700">No hay nuevos avisos</p>
           <p class="text-xs text-slate-400 mt-1">Usa el formulario de la izquierda para publicar tu primer aviso.</p>
         </div>
       `;
@@ -565,46 +568,78 @@
     });
   }
 
-  // Sincronización frecuente y bidireccional con Vercel KV y Google Sheets
-  async function sincronizarConGoogleSheets(esManual = false) {
-    if (btnSyncAhora) btnSyncAhora.classList.add('opacity-50', 'pointer-events-none');
-
+  // Sincronización automática periódica en segundo plano con Google Sheets
+  async function sincronizarConGoogleSheets() {
     try {
-      // 1. Sincronizar avisos institucionales con el backend en Vercel KV
       const resAvisos = await InasistenciasLogic.sincronizarAvisosConServidor();
       if (resAvisos && resAvisos.ok) {
         renderAvisosActivos();
       }
-
-      // 2. Sincronizar inasistencias con Google Sheets
       if (typeof SheetAPI !== 'undefined') {
-        const datos = await SheetAPI.obtenerDatos();
-        const ahora = new Date();
-        const horaStr = ahora.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-        if (dotSyncAdmin) dotSyncAdmin.className = 'h-2 w-2 rounded-full bg-emerald-400 animate-pulse';
-        if (txtSyncAdmin) txtSyncAdmin.textContent = 'Sheets y Pantalla en vivo';
-        if (horaSyncAdmin) horaSyncAdmin.textContent = horaStr;
-
-        if (esManual) {
-          const totalDocentes = Array.isArray(datos?.docentes) ? datos.docentes.length : 0;
-          mostrarToast(`Sincronización completa con Google Sheets (${totalDocentes} inasistencias cargadas).`);
-        }
+        await SheetAPI.obtenerDatos();
       }
     } catch (err) {
-      console.warn('Error sincronizando con Google Sheets:', err);
-      if (dotSyncAdmin) dotSyncAdmin.className = 'h-2 w-2 rounded-full bg-amber-400';
-      if (txtSyncAdmin) txtSyncAdmin.textContent = 'Reconectando Sheets...';
-      if (esManual) {
-        mostrarToast('No se pudo conectar con la planilla de Google Sheets. Verifica la conexión a internet.', 'warning');
-      }
-    } finally {
-      if (btnSyncAhora) btnSyncAhora.classList.remove('opacity-50', 'pointer-events-none');
+      console.warn('Sincronización en segundo plano:', err);
     }
+  }
+
+  // Control de Acceso y Sesión Administrativa
+  function verificarAutenticacion() {
+    const estaAutenticado = sessionStorage.getItem(STORAGE_AUTH_KEY) === 'true';
+    if (authOverlay) {
+      if (estaAutenticado) {
+        authOverlay.classList.add('hidden');
+      } else {
+        authOverlay.classList.remove('hidden');
+        if (inputLoginUsuario) setTimeout(() => inputLoginUsuario.focus(), 150);
+      }
+    }
+  }
+
+  function inicializarAutenticacion() {
+    if (formLogin) {
+      formLogin.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const usuarioIngresado = (inputLoginUsuario?.value || '').trim();
+        const passwordIngresado = (inputLoginPassword?.value || '').trim();
+
+        if (usuarioIngresado === CREDENCIALES_ADMIN.usuario && passwordIngresado === CREDENCIALES_ADMIN.password) {
+          sessionStorage.setItem(STORAGE_AUTH_KEY, 'true');
+          if (loginError) loginError.classList.add('hidden');
+          if (authOverlay) authOverlay.classList.add('hidden');
+          formLogin.reset();
+          mostrarToast('Sesión administrativa iniciada correctamente.', 'success');
+        } else {
+          if (loginError) loginError.classList.remove('hidden');
+          if (inputLoginPassword) {
+            inputLoginPassword.value = '';
+            inputLoginPassword.focus();
+          }
+        }
+      });
+    }
+
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        if (confirm('¿Deseas cerrar la sesión de administración?')) {
+          sessionStorage.removeItem(STORAGE_AUTH_KEY);
+          if (authOverlay) authOverlay.classList.remove('hidden');
+          if (formLogin) formLogin.reset();
+          if (loginError) loginError.classList.add('hidden');
+          if (inputLoginUsuario) setTimeout(() => inputLoginUsuario.focus(), 150);
+          mostrarToast('Sesión cerrada.', 'info');
+        }
+      });
+    }
+
+    verificarAutenticacion();
   }
 
   // Inicialización de Eventos y Controladores
   function inicializar() {
+    // 0. Autenticación de acceso
+    inicializarAutenticacion();
+
     // Control y actualización de contadores de caracteres
     function actualizarContadores() {
       if (contadorTitulo && inputTitulo) {
@@ -645,7 +680,6 @@
       r.addEventListener('change', actualizarVistaPrevia);
     });
 
-
     // 2. Control de Toggle Código QR
     if (inputToggleQr && contenedorQrEnlace) {
       inputToggleQr.addEventListener('change', (e) => {
@@ -684,47 +718,6 @@
       });
     }
 
-    // Manejo de conexión directa con Google Apps Script
-    function actualizarBadgeAppsScript() {
-      const url = InasistenciasLogic.obtenerUrlAppsScript();
-      if (inputAppsScriptUrl && !inputAppsScriptUrl.value) {
-        inputAppsScriptUrl.value = url;
-      }
-      if (badgeScriptStatus) {
-        if (url) {
-          badgeScriptStatus.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300';
-          badgeScriptStatus.textContent = 'Enlazado con Google Sheets';
-        } else {
-          badgeScriptStatus.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300';
-          badgeScriptStatus.textContent = 'Pendiente Enlazar';
-        }
-      }
-    }
-
-    if (btnGuardarScriptUrl && inputAppsScriptUrl) {
-      btnGuardarScriptUrl.addEventListener('click', async () => {
-        const url = inputAppsScriptUrl.value.trim();
-        InasistenciasLogic.guardarUrlAppsScript(url);
-        actualizarBadgeAppsScript();
-        if (url) {
-          mostrarToast('Sincronizando avisos con Google Sheets...');
-          const lista = InasistenciasLogic.obtenerAvisosGuardados();
-          await InasistenciasLogic.guardarAvisosEnGoogleSheets(lista);
-          mostrarToast('✅ ¡Planilla de Google Sheets conectada y sincronizada!');
-        } else {
-          mostrarToast('Enlace de Apps Script eliminado.', 'info');
-        }
-      });
-    }
-
-    if (btnToggleGuiaScript && guiaScriptBox) {
-      btnToggleGuiaScript.addEventListener('click', () => {
-        guiaScriptBox.classList.toggle('hidden');
-      });
-    }
-
-    actualizarBadgeAppsScript();
-
     // 5. Botón Cancelar Edición
     if (btnCancelarEdicion) {
       btnCancelarEdicion.addEventListener('click', cancelarEdicion);
@@ -742,14 +735,7 @@
       });
     }
 
-    // 7. Botón Manual de Sincronización con Sheets
-    if (btnSyncAhora) {
-      btnSyncAhora.addEventListener('click', () => {
-        sincronizarConGoogleSheets(true);
-      });
-    }
-
-    // 8. Envío del Formulario (Creación o Guardado de Edición)
+    // 7. Envío del Formulario con Confirmación Explícita
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -772,6 +758,15 @@
           return;
         }
 
+        const esEdicion = !!id;
+        const mensajeConfirmacion = esEdicion
+          ? `¿Confirmas que deseas guardar las modificaciones del aviso "${titulo}" en la pantalla TV y en la planilla?`
+          : `¿Confirmas que deseas publicar el aviso "${titulo}" en la pantalla TV y en la planilla?`;
+
+        if (!window.confirm(mensajeConfirmacion)) {
+          return;
+        }
+
         // Si tiene QR y aún no se generó o cambió la URL, generarlo ahora mismo
         let qrDataUrl = imagenQRActual;
         if (tieneQr && (!qrDataUrl || urlQRActual !== urlIngresada)) {
@@ -788,28 +783,19 @@
           qrImagen: tieneQr ? qrDataUrl : ''
         });
 
-        const fueEdicion = !!id;
         cancelarEdicion();
         renderAvisosActivos();
 
-        const urlScript = InasistenciasLogic.obtenerUrlAppsScript();
-        if (urlScript) {
-          if (fueEdicion) {
-            mostrarToast('💾 ¡Cambios guardados en TV y en Google Sheets!');
-          } else {
-            mostrarToast('🎉 ¡Aviso publicado en TV y en Google Sheets!');
-          }
-        } else {
-          if (fueEdicion) {
-            mostrarToast('💾 Cambios guardados en TV. Conecta Apps Script arriba para enviar a Sheets.', 'info');
-          } else {
-            mostrarToast('🎉 Aviso publicado en TV. Conecta Apps Script arriba para enviar a Sheets.', 'info');
-          }
-        }
+        const textoExito = esEdicion
+          ? '¡Aviso modificado y sincronizado con éxito!'
+          : '¡Aviso publicado con éxito en la Pantalla TV y en la planilla!';
+
+        mostrarToast(textoExito, 'success');
+        window.alert(textoExito);
       });
     }
 
-    // 9. Sincronización multi-pestaña (si se modifica en otra ventana)
+    // 8. Sincronización multi-pestaña (si se modifica en otra ventana)
     window.addEventListener('storage', (e) => {
       if (e.key === 'isbo_avisos_manuales') {
         renderAvisosActivos();
@@ -817,7 +803,7 @@
       }
     });
 
-    // 10. Control de Búsqueda de Avisos
+    // 9. Control de Búsqueda de Avisos
     if (busquedaAvisos) {
       busquedaAvisos.addEventListener('input', (e) => {
         busquedaTextoActual = e.target.value;
@@ -837,7 +823,7 @@
       });
     }
 
-    // 11. Botones de Filtrado por Estado (Todos, En TV, En Pausa)
+    // 10. Botones de Filtrado por Estado (Todos, En TV, En Pausa)
     document.querySelectorAll('.filtro-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         filtroEstadoActual = btn.getAttribute('data-filtro') || 'todos';
@@ -846,53 +832,9 @@
       });
     });
 
-    // 12. Exportar Respaldo en Archivo JSON
-    if (btnExportarJson) {
-      btnExportarJson.addEventListener('click', () => {
-        try {
-          const json = InasistenciasLogic.exportarAvisosJSON();
-          const blob = new Blob([json], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const fecha = new Date().toISOString().slice(0, 10);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `respaldo_avisos_isbo_${fecha}.json`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-          mostrarToast('📥 Respaldo exportado exitosamente.', 'success');
-        } catch (err) {
-          console.error(err);
-          mostrarToast('Error al exportar respaldo.', 'error');
-        }
-      });
-    }
-
-    // 13. Importar Respaldo desde Archivo JSON
-    if (inputArchivoImportar) {
-      inputArchivoImportar.addEventListener('change', (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          try {
-            InasistenciasLogic.importarAvisosJSON(evt.target.result);
-            renderAvisosActivos();
-            actualizarVistaPrevia();
-            mostrarToast('📤 ¡Respaldo importado correctamente!');
-          } catch (err) {
-            mostrarToast('Error: archivo JSON inválido.', 'error');
-          }
-          inputArchivoImportar.value = '';
-        };
-        reader.readAsText(file);
-      });
-    }
-
-    // 14. Monitoreo frecuente de la planilla de Google Sheets (cada 25 s)
-    sincronizarConGoogleSheets(false);
-    setInterval(() => sincronizarConGoogleSheets(false), INTERVALO_SYNC_SHEETS_MS);
+    // 11. Monitoreo frecuente automático en segundo plano (cada 25 s)
+    sincronizarConGoogleSheets();
+    setInterval(sincronizarConGoogleSheets, INTERVALO_SYNC_SHEETS_MS);
 
     // Render inicial
     actualizarContadores();

@@ -178,7 +178,7 @@ window.UI = (function () {
       contenedor.innerHTML = `
         <div class="bg-white rounded-2xl p-6 text-center border-2 border-dashed border-slate-200">
           <span class="material-symbols-outlined text-slate-400 text-4xl mb-2">campaign</span>
-          <h4 class="text-sm font-bold text-slate-700">Sin comunicados especiales</h4>
+          <h4 class="text-sm font-bold text-slate-700">No hay nuevos avisos</h4>
           <p class="text-xs text-slate-400 mt-1">Las clases y actividades transcurren con normalidad.</p>
         </div>
       `;
