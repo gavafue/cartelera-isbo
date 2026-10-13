@@ -214,8 +214,7 @@ module.exports = async function handler(req, res) {
     try {
       // Verificación de seguridad de token administrativo
       const VALID_TOKENS = [
-        '63e5ecffac0ae2f32c2ae12d65ef2073f21d0921deed7195f81b08c7099cf4b2', // adminisbo
-        'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36'  // isboadmin
+        'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36'
       ];
       const clientToken = req.headers['x-isbo-token'] || req.headers['authorization'];
       if (!clientToken || !VALID_TOKENS.includes(clientToken)) {

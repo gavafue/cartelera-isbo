@@ -14,25 +14,17 @@
 
 (function () {
   // ============================================================================
-  // CREDENCIALES DE ACCESO ADMINISTRATIVO (Hasheadas mediante SHA-256)
-  // Las credenciales NO se exponen en texto plano en el código fuente.
+  // CREDENCIALES DE ACCESO ADMINISTRATIVO (SHA-256)
   // ============================================================================
   const AUTH_CONFIG = {
-    // Hashes SHA-256 de usuarios institucionales aceptados ('adminisbo' e 'isboadmin')
     userHashes: [
-      'd9cb7b5953a65aea5e79cc3b1ae9cb32318d81c6a02c9bd1092869b8b90aa67e', // adminisbo
-      'f6c1823b9cce392f129737fe2165e55437ce93df1697f4871c84eadf1558d488'  // isboadmin
+      'f6c1823b9cce392f129737fe2165e55437ce93df1697f4871c84eadf1558d488'
     ],
-    // Hash SHA-256 de la contraseña institucional ('avisos1sb0')
     passHash: 'aaa3fa97ccc67ad27252511e7066f7787785ecc399b0c494bdb0b84d36a498de',
-    // Salting criptográfico para protección contra ataques de diccionario
     salt: 'isbo_cartelera_2026_salt',
-    // Tokens válidos de sesión autorizada: SHA-256(usuario + ":" + pass + ":" + salt)
     validTokens: [
-      '63e5ecffac0ae2f32c2ae12d65ef2073f21d0921deed7195f81b08c7099cf4b2', // adminisbo:avisos1sb0:salt
-      'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36'  // isboadmin:avisos1sb0:salt
+      'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36'
     ],
-    // Duración de la sesión activa en el navegador (8 horas)
     sessionDurationMs: 8 * 60 * 60 * 1000
   };
   const STORAGE_AUTH_KEY = 'isbo_auth_session';

@@ -446,8 +446,7 @@ window.InasistenciasLogic = (function () {
 
   const AUTH_STORAGE_KEY = 'isbo_auth_session';
   const VALID_AUTH_TOKENS = [
-    '63e5ecffac0ae2f32c2ae12d65ef2073f21d0921deed7195f81b08c7099cf4b2', // adminisbo
-    'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36'  // isboadmin
+    'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36'
   ];
 
   function obtenerTokenSesion() {
