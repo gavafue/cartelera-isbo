@@ -574,6 +574,28 @@
     actualizarVistaPrevia();
   }
 
+  // Control y actualización de contadores de caracteres
+  function actualizarContadores() {
+    if (contadorTitulo && inputTitulo) {
+      contadorTitulo.textContent = `${inputTitulo.value.length} / 65`;
+    }
+    if (contadorMensaje && inputMensaje) {
+      contadorMensaje.textContent = `${inputMensaje.value.length} caracteres`;
+    }
+  }
+
+  // Actualiza el aspecto de los botones de filtro
+  function actualizarBotonesFiltro() {
+    document.querySelectorAll('.filtro-btn').forEach(btn => {
+      const f = btn.getAttribute('data-filtro');
+      if (f === filtroEstadoActual) {
+        btn.className = 'filtro-btn px-2.5 py-1 rounded-lg font-bold bg-[#00489A] text-white shadow-xs cursor-pointer transition-colors';
+      } else {
+        btn.className = 'filtro-btn px-2.5 py-1 rounded-lg font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors';
+      }
+    });
+  }
+
   // Activa el modo de edición cargando los datos del aviso en el formulario
   async function iniciarEdicion(id) {
     const aviso = InasistenciasLogic.obtenerAvisoPorId(id);
@@ -1121,28 +1143,6 @@
           if (formLogin) formLogin.reset();
           if (loginError) loginError.classList.add('hidden');
           mostrarToast('Sesión cerrada.', 'info');
-        }
-      });
-    }
-
-    // Control y actualización de contadores de caracteres
-    function actualizarContadores() {
-      if (contadorTitulo && inputTitulo) {
-        contadorTitulo.textContent = `${inputTitulo.value.length} / 65`;
-      }
-      if (contadorMensaje && inputMensaje) {
-        contadorMensaje.textContent = `${inputMensaje.value.length} caracteres`;
-      }
-    }
-
-    // Actualiza el aspecto de los botones de filtro
-    function actualizarBotonesFiltro() {
-      document.querySelectorAll('.filtro-btn').forEach(btn => {
-        const f = btn.getAttribute('data-filtro');
-        if (f === filtroEstadoActual) {
-          btn.className = 'filtro-btn px-2.5 py-1 rounded-lg font-bold bg-[#00489A] text-white shadow-xs cursor-pointer transition-colors';
-        } else {
-          btn.className = 'filtro-btn px-2.5 py-1 rounded-lg font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors';
         }
       });
     }
