@@ -343,18 +343,31 @@ window.InasistenciasLogic = (function () {
     return lista.find(a => a.id === id) || null;
   }
 
-  // Sincroniza avisos con el backend en Vercel (/api/avisos)
+  // Sincroniza avisos con Google Sheets (pestaña 'Avisos') o backend
   async function sincronizarAvisosConServidor() {
     try {
+      // 1. Prioridad: Pestaña 'Avisos' de la planilla Google Sheets institucional
+      if (typeof SheetAPI !== 'undefined' && typeof SheetAPI.obtenerAvisos === 'function') {
+        const avisosSheet = await SheetAPI.obtenerAvisos();
+        if (Array.isArray(avisosSheet) && avisosSheet.length > 0) {
+          const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
+          const nuevoStr = JSON.stringify(avisosSheet);
+          const huboCambio = anteriorStr !== nuevoStr;
+          localStorage.setItem(STORAGE_AVISOS, nuevoStr);
+          return { ok: true, avisos: avisosSheet, cambio: huboCambio, fuente: 'google-sheets' };
+        }
+      }
+
+      // 2. Respaldo: endpoint local o avisos.json
       const res = await fetch('/api/avisos');
       if (res.ok) {
         const data = await res.json();
-        if (data && Array.isArray(data.avisos)) {
+        if (data && Array.isArray(data.avisos) && data.avisos.length > 0) {
           const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
           const nuevoStr = JSON.stringify(data.avisos);
           const huboCambio = anteriorStr !== nuevoStr;
           localStorage.setItem(STORAGE_AVISOS, nuevoStr);
-          return { ok: true, avisos: data.avisos, cambio: huboCambio, fuente: data.fuente };
+          return { ok: true, avisos: data.avisos, cambio: huboCambio, fuente: data.fuente || 'api' };
         }
       }
     } catch (e) {

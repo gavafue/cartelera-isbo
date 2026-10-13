@@ -87,6 +87,65 @@ async function guardarEnVercelKV(avisos) {
   return true;
 }
 
+async function obtenerDeGoogleSheets() {
+  const SPREADSHEET_ID = '1t83h87_A01gSG518nU7QtpCGMNHR7kRbB900l-18TIk';
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?sheet=Avisos&tqx=out:json&headers=0`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const texto = await res.text();
+    const json = JSON.parse(texto.replace(/^[\s\S]*setResponse\(/, '').replace(/\);?\s*$/, ''));
+    const rows = json?.table?.rows || [];
+    if (!rows.length) return null;
+
+    let colTitulo = 0, colMensaje = 1, colCategoria = 2, colQr = 3, colActivo = 4, filaInicio = 0;
+    const r0 = rows[0];
+    if (r0 && r0.c) {
+      let esHeader = false;
+      r0.c.forEach((cell, idx) => {
+        if (!cell) return;
+        const val = String(cell.f || cell.v || '').trim().toLowerCase();
+        if (val.includes('título') || val.includes('titulo')) { colTitulo = idx; esHeader = true; }
+        else if (val.includes('mensaje') || val.includes('texto') || val.includes('detalle')) { colMensaje = idx; esHeader = true; }
+        else if (val.includes('categor') || val.includes('prioridad')) { colCategoria = idx; esHeader = true; }
+        else if (val.includes('qr') || val.includes('enlace') || val.includes('link')) { colQr = idx; esHeader = true; }
+        else if (val.includes('activo') || val.includes('estado')) { colActivo = idx; esHeader = true; }
+      });
+      if (esHeader) filaInicio = 1;
+    }
+
+    const avisos = [];
+    for (let i = filaInicio; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r.c) continue;
+      const getVal = (c) => String(r.c[c]?.f || r.c[c]?.v || '').trim();
+      const titulo = getVal(colTitulo);
+      const mensaje = getVal(colMensaje);
+      if (!titulo && !mensaje) continue;
+      const activoRaw = getVal(colActivo).toLowerCase();
+      const activo = !['no', 'pausado', 'pausa', 'false', '0', 'inactivo'].includes(activoRaw);
+      const catRaw = getVal(colCategoria).toLowerCase();
+      const prioridad = ['urgente', 'atencion', 'avisos', 'informacion', 'tramites', 'examenes'].includes(catRaw) ? catRaw : 'avisos';
+      const qrUrl = getVal(colQr);
+
+      avisos.push({
+        id: `aviso-sheet-${i + 1}`,
+        titulo: titulo || 'Aviso Institucional',
+        mensaje: mensaje || '',
+        prioridad,
+        tieneQr: Boolean(qrUrl),
+        qrUrl,
+        activo,
+        fuente: 'google-sheets'
+      });
+    }
+    return avisos.length ? avisos : null;
+  } catch (err) {
+    console.warn('Error leyendo pestaña Avisos en serverless:', err);
+    return null;
+  }
+}
+
 module.exports = async function handler(req, res) {
   // Configuración de CORS y cabeceras
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -99,8 +158,20 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
+      // 1. Prioridad: Pestaña Avisos de Google Sheets
+      const avisosSheets = await obtenerDeGoogleSheets();
+      if (avisosSheets && Array.isArray(avisosSheets) && avisosSheets.length > 0) {
+        res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=15');
+        return res.status(200).json({
+          ok: true,
+          fuente: 'google-sheets',
+          avisos: avisosSheets
+        });
+      }
+
+      // 2. Si KV está configurado, consultar KV
       const avisosKV = await obtenerDeVercelKV();
-      if (avisosKV && Array.isArray(avisosKV)) {
+      if (avisosKV && Array.isArray(avisosKV) && avisosKV.length > 0) {
         res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=10');
         return res.status(200).json({
           ok: true,
@@ -109,7 +180,7 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      // Si aún no se guardaron o KV no está configurado, devolver avisos base
+      // 3. Fallback a avisos.json estático base
       const porDefecto = obtenerAvisosPorDefecto();
       res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=20');
       return res.status(200).json({

@@ -589,20 +589,20 @@
         const horaStr = ahora.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
         if (dotSyncAdmin) dotSyncAdmin.className = 'h-2 w-2 rounded-full bg-emerald-400 animate-pulse';
-        if (txtSyncAdmin) txtSyncAdmin.textContent = 'Servidor y Sheets en vivo';
+        if (txtSyncAdmin) txtSyncAdmin.textContent = 'Sheets y Pantalla en vivo';
         if (horaSyncAdmin) horaSyncAdmin.textContent = horaStr;
 
         if (esManual) {
           const totalDocentes = Array.isArray(datos?.docentes) ? datos.docentes.length : 0;
-          mostrarToast(`Sincronización completa: Avisos en la nube y Sheets (${totalDocentes} inasistencias).`);
+          mostrarToast(`Sincronización completa con Google Sheets (${totalDocentes} inasistencias cargadas).`);
         }
       }
     } catch (err) {
-      console.warn('Error sincronizando con Google Sheets / Servidor:', err);
+      console.warn('Error sincronizando con Google Sheets:', err);
       if (dotSyncAdmin) dotSyncAdmin.className = 'h-2 w-2 rounded-full bg-amber-400';
-      if (txtSyncAdmin) txtSyncAdmin.textContent = 'Reconectando...';
+      if (txtSyncAdmin) txtSyncAdmin.textContent = 'Reconectando Sheets...';
       if (esManual) {
-        mostrarToast('No se pudo conectar con el servidor o planilla. Verifica la conexión a internet.', 'warning');
+        mostrarToast('No se pudo conectar con la planilla de Google Sheets. Verifica la conexión a internet.', 'warning');
       }
     } finally {
       if (btnSyncAhora) btnSyncAhora.classList.remove('opacity-50', 'pointer-events-none');

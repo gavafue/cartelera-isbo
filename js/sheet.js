@@ -284,51 +284,167 @@ window.SheetAPI = (function () {
     };
   }
 
-  // Descarga los datos mediante JSONP (sin problemas de CORS en navegadores)
-  function cargarJSONP(sheetId) {
-    return new Promise((resolve, reject) => {
+  // Procesa las filas de la pestaña Avisos en Google Sheets
+  function procesarFilasAvisos(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return [];
+    }
+
+    let colTitulo = 0;
+    let colMensaje = 1;
+    let colCategoria = 2;
+    let colQr = 3;
+    let colActivo = 4;
+    let filaInicio = 0;
+
+    // Detectar si la primera fila es encabezado
+    const r0 = rows[0];
+    if (r0 && r0.c) {
+      let esHeader = false;
+      r0.c.forEach((cell, cIdx) => {
+        if (!cell) return;
+        const val = String(cell.f || cell.v || '').trim().toLowerCase();
+        if (val.includes('título') || val.includes('titulo') || val.includes('asunto') || val.includes('tema')) {
+          colTitulo = cIdx;
+          esHeader = true;
+        } else if (val.includes('mensaje') || val.includes('texto') || val.includes('detalle') || val.includes('descripci') || val.includes('comunicado')) {
+          colMensaje = cIdx;
+          esHeader = true;
+        } else if (val.includes('categor') || val.includes('prioridad') || val.includes('tipo')) {
+          colCategoria = cIdx;
+          esHeader = true;
+        } else if (val.includes('qr') || val.includes('enlace') || val.includes('link') || val.includes('url')) {
+          colQr = cIdx;
+          esHeader = true;
+        } else if (val.includes('activo') || val.includes('estado') || val.includes('publicado') || val.includes('visible')) {
+          colActivo = cIdx;
+          esHeader = true;
+        }
+      });
+      if (esHeader) {
+        filaInicio = 1;
+      }
+    }
+
+    const avisos = [];
+    for (let i = filaInicio; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r.c) continue;
+
+      const obtenerVal = (col) => {
+        const cell = r.c[col];
+        if (!cell) return '';
+        return String(cell.f || cell.v || '').trim();
+      };
+
+      const titulo = obtenerVal(colTitulo);
+      const mensaje = obtenerVal(colMensaje);
+      const categoriaRaw = obtenerVal(colCategoria);
+      const qrUrl = obtenerVal(colQr);
+      const activoRaw = obtenerVal(colActivo).toLowerCase();
+
+      // Si no hay ni título ni mensaje, ignorar fila vacía
+      if (!titulo && !mensaje) continue;
+
+      // Determinar si está activo (por defecto activo salvo que diga no, pausa, oculto, etc.)
+      let activo = true;
+      if (activoRaw && ['no', 'pausado', 'pausa', 'false', '0', 'inactivo', 'oculto'].includes(activoRaw)) {
+        activo = false;
+      }
+
+      // Normalizar categoría
+      let categoria = 'avisos';
+      if (categoriaRaw) {
+        if (typeof InasistenciasLogic !== 'undefined' && InasistenciasLogic.normalizarCategoria) {
+          categoria = InasistenciasLogic.normalizarCategoria(categoriaRaw);
+        } else {
+          const c = categoriaRaw.toLowerCase();
+          if (['urgente', 'atencion', 'avisos', 'informacion', 'tramites', 'examenes'].includes(c)) {
+            categoria = c;
+          }
+        }
+      } else if (mensaje && typeof InasistenciasLogic !== 'undefined' && InasistenciasLogic.clasificarAvisoTexto) {
+        categoria = InasistenciasLogic.clasificarAvisoTexto(titulo + ' ' + mensaje);
+      }
+
+      avisos.push({
+        id: 'aviso-sheet-' + (i + 1),
+        titulo: titulo || 'Aviso Institucional',
+        mensaje: mensaje || '',
+        prioridad: categoria,
+        tieneQr: Boolean(qrUrl),
+        qrUrl: qrUrl || '',
+        activo: activo,
+        fuente: 'google-sheets'
+      });
+    }
+
+    return avisos;
+  }
+
+  // Descarga las filas crudas de una hoja de Google Sheets vía JSONP con fallback a fetch
+  function cargarFilas(sheetId, sheetName = '') {
+    return new Promise((resolve) => {
       const nombreCallback = 'callback_sheets_' + Math.floor(Math.random() * 1000000);
       const script = document.createElement('script');
+      const sheetParam = sheetName ? `&sheet=${encodeURIComponent(sheetName)}` : '';
 
-      window[nombreCallback] = function (respuesta) {
+      let resuelto = false;
+
+      const fallbackFetch = async () => {
+        if (resuelto) return;
+        resuelto = true;
         try {
-          const resultado = procesarFilas(respuesta?.table?.rows || []);
-          resolve(resultado);
-        } catch (e) {
-          reject(e);
-        } finally {
-          script.remove();
-          delete window[nombreCallback];
+          const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0${sheetParam}`;
+          const res = await fetch(url);
+          const texto = await res.text();
+          const json = JSON.parse(texto.replace(/^[\s\S]*setResponse\(/, '').replace(/\);?\s*$/, ''));
+          resolve(json?.table?.rows || []);
+        } catch (err) {
+          console.warn(`Error al cargar hoja "${sheetName || 'principal'}" con fetch:`, err);
+          resolve([]);
         }
       };
 
-      script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${nombreCallback}&headers=0`;
+      window[nombreCallback] = function (respuesta) {
+        if (resuelto) return;
+        resuelto = true;
+        script.remove();
+        delete window[nombreCallback];
+        resolve(respuesta?.table?.rows || []);
+      };
+
+      script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${nombreCallback}&headers=0${sheetParam}`;
       script.onerror = () => {
         script.remove();
         delete window[nombreCallback];
-        reject(new Error('No se pudo cargar la hoja mediante JSONP'));
+        fallbackFetch();
       };
+
+      // Si JSONP tarda más de 3 segundos, intentar fetch
+      setTimeout(() => {
+        if (!resuelto) fallbackFetch();
+      }, 3000);
 
       document.head.appendChild(script);
     });
   }
 
-  // Obtiene los datos de Google Sheets con fallback directo a fetch
+  // Obtiene las inasistencias docentes (primera hoja)
   async function obtenerDatos() {
-    try {
-      return await cargarJSONP(SPREADSHEET_ID);
-    } catch (err) {
-      console.warn('Fallo JSONP, intentando fetch directo:', err);
-      const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&headers=0`;
-      const res = await fetch(url);
-      const texto = await res.text();
-      const json = JSON.parse(texto.replace(/^[\s\S]*setResponse\(/, '').replace(/\);?\s*$/, ''));
-      return procesarFilas(json?.table?.rows || []);
-    }
+    const rows = await cargarFilas(SPREADSHEET_ID, '');
+    return procesarFilas(rows);
+  }
+
+  // Obtiene los comunicados institucionales desde la pestaña 'Avisos'
+  async function obtenerAvisos() {
+    const rows = await cargarFilas(SPREADSHEET_ID, 'Avisos');
+    return procesarFilasAvisos(rows);
   }
 
   return {
     obtenerDatos,
+    obtenerAvisos,
     parsearFecha: parsearFechaToken,
     parsearRangoFechas
   };
