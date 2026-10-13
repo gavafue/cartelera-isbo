@@ -89,18 +89,66 @@
       </div>
     </div>
 
-    <!-- Guía de Columnas para Google Sheets -->
-    <div class="mb-8 p-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-emerald-900">
-      <div class="flex items-start gap-2.5">
-        <span class="material-symbols-outlined text-emerald-700 text-xl shrink-0 mt-0.5">verified</span>
-        <div>
-          <p class="font-extrabold text-sm text-emerald-950">Sincronización con Google Sheets en vivo (Sin costo alguno)</p>
-          <p class="mt-0.5 text-emerald-800">
-            Los avisos ingresados en la pestaña <strong>Avisos</strong> se reflejan en la TV automáticamente cada 25 segundos.
-            Encabezados de columnas recomendados en la fila 1:
-            <span class="font-mono font-bold bg-white/70 px-1.5 py-0.5 rounded border border-emerald-300">Título | Mensaje | Categoría | Enlace QR | Activo</span>
-          </p>
+    <!-- Panel de Enlace con Google Sheets (Google Apps Script) -->
+    <div class="mb-8 p-5 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3.5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0">
+            <span class="material-symbols-outlined text-xl">table_chart</span>
+          </div>
+          <div>
+            <h2 class="text-sm font-black text-slate-900 flex items-center gap-2">
+              <span>Sincronización con tu Hoja de Google Sheets</span>
+              <span id="badge-script-status" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
+                Pendiente Enlazar
+              </span>
+            </h2>
+            <p class="text-xs text-slate-500">Permite que cada aviso publicado desde este formulario se guarde de inmediato en tu pestaña <strong>Avisos</strong>.</p>
+          </div>
         </div>
+
+        <button type="button" id="btn-toggle-guia-script" class="text-xs font-bold text-sky-700 hover:text-sky-800 flex items-center gap-1 self-start sm:self-auto cursor-pointer">
+          <span class="material-symbols-outlined text-base">help_outline</span>
+          <span>¿Cómo obtener la URL? (1 minuto)</span>
+        </button>
+      </div>
+
+      <!-- Formulario para ingresar / guardar la URL del Web App de Apps Script -->
+      <div class="flex flex-col sm:flex-row items-stretch gap-2 pt-1">
+        <div class="relative flex-1">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">link</span>
+          <input type="url" id="input-apps-script-url" placeholder="Pega aquí la URL de la Aplicación web de Google Apps Script (https://script.google.com/macros/s/.../exec)" class="w-full pl-9 pr-3 py-2 rounded-xl border-2 border-slate-200 text-xs font-mono font-medium focus:border-emerald-600 focus:outline-none text-slate-800 bg-slate-50 transition-colors">
+        </div>
+        <button type="button" id="btn-guardar-script-url" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-base">save</span>
+          <span>Conectar Planilla</span>
+        </button>
+      </div>
+
+      <!-- Guía desplegable de 3 pasos -->
+      <div id="guia-script-box" class="hidden p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-3">
+        <p class="font-bold text-slate-900">3 pasos sencillos para que el formulario guarde en tu Google Sheets:</p>
+        <ol class="list-decimal list-inside space-y-1.5 text-slate-600 leading-relaxed">
+          <li>Abre tu planilla de Google Sheets y en el menú superior ve a <strong>Extensiones ➔ Apps Script</strong>.</li>
+          <li>Borra cualquier código que aparezca y pega el siguiente script:</li>
+        </ol>
+        <pre class="p-3 bg-slate-900 text-emerald-400 rounded-lg text-[11px] font-mono overflow-x-auto select-all">function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Avisos") || ss.insertSheet("Avisos");
+  var data = JSON.parse(e.postData.contents);
+  var avisos = Array.isArray(data) ? data : (data.avisos || [data]);
+  sheet.clearContents();
+  sheet.appendRow(["Título", "Mensaje", "Categoría", "Enlace QR", "Activo", "Fecha"]);
+  for (var i = 0; i < avisos.length; i++) {
+    var a = avisos[i];
+    if (!a.titulo && !a.mensaje) continue;
+    sheet.appendRow([a.titulo || "", a.mensaje || "", a.prioridad || "avisos", a.qrUrl || "", a.activo !== false ? "SI" : "NO", a.fechaCreacion || new Date().toISOString()]);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+}</pre>
+        <ol class="list-decimal list-inside space-y-1.5 text-slate-600 leading-relaxed" start="3">
+          <li>Haz clic arriba a la derecha en <strong>Implementar ➔ Nueva implementación</strong>, selecciona tipo <strong>Aplicación web</strong>, en <em>Quién tiene acceso</em> elige <strong>Cualquiera</strong> y pulsa <strong>Implementar</strong>. Copia la URL que termina en <code>/exec</code> y pégala arriba.</li>
+        </ol>
       </div>
     </div>
 
@@ -366,8 +414,8 @@
                   <span class="hidden sm:inline">Importar</span>
                   <input type="file" id="input-archivo-importar" accept=".json,application/json" class="hidden">
                 </label>
-                <button type="button" id="btn-restaurar-base" class="p-1 rounded-lg text-slate-500 hover:text-red-700 hover:bg-red-50 border border-slate-200 transition-colors cursor-pointer" title="Restaurar comunicados base predeterminados">
-                  <span class="material-symbols-outlined text-sm">restart_alt</span>
+                <button type="button" id="btn-restaurar-base" class="p-1 rounded-lg text-slate-500 hover:text-red-700 hover:bg-red-50 border border-slate-200 transition-colors cursor-pointer" title="Vaciar todos los comunicados">
+                  <span class="material-symbols-outlined text-sm">delete_sweep</span>
                 </button>
               </div>
             </div>

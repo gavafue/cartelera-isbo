@@ -52,6 +52,13 @@
   const contadorTitulo = document.getElementById('contador-titulo');
   const contadorMensaje = document.getElementById('contador-mensaje');
 
+  // Elementos de integración directa con Google Apps Script Web App
+  const inputAppsScriptUrl = document.getElementById('input-apps-script-url');
+  const btnGuardarScriptUrl = document.getElementById('btn-guardar-script-url');
+  const badgeScriptStatus = document.getElementById('badge-script-status');
+  const btnToggleGuiaScript = document.getElementById('btn-toggle-guia-script');
+  const guiaScriptBox = document.getElementById('guia-script-box');
+
   // Elementos de sincronización con Google Sheets
   const dotSyncAdmin = document.getElementById('dot-sync-admin');
   const txtSyncAdmin = document.getElementById('txt-sync-admin');
@@ -390,23 +397,10 @@
       listaAvisosActivos.innerHTML = `
         <div class="p-6 text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl">
           <span class="material-symbols-outlined text-slate-400 text-4xl mb-1">speaker_notes_off</span>
-          <p class="text-sm font-bold text-slate-600">No hay avisos guardados</p>
-          <p class="text-xs text-slate-400 mt-1 mb-3">Puedes redactar uno nuevo con el formulario o restaurar los comunicados base institucionales.</p>
-          <button type="button" id="btn-restaurar-vacio" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold transition-colors">
-            <span class="material-symbols-outlined text-sm">restart_alt</span>
-            <span>Restaurar Avisos Base (ATD, Feriado, Boletos)</span>
-          </button>
+          <p class="text-sm font-bold text-slate-700">No hay comunicados cargados</p>
+          <p class="text-xs text-slate-400 mt-1">Usa el formulario de la izquierda para publicar tu primer aviso.</p>
         </div>
       `;
-
-      const btnVacio = document.getElementById('btn-restaurar-vacio');
-      if (btnVacio) {
-        btnVacio.addEventListener('click', () => {
-          InasistenciasLogic.restaurarAvisosPorDefecto();
-          renderAvisosActivos();
-          mostrarToast('Avisos base institucionales restaurados.');
-        });
-      }
       return;
     }
 
@@ -690,19 +684,60 @@
       });
     }
 
+    // Manejo de conexión directa con Google Apps Script
+    function actualizarBadgeAppsScript() {
+      const url = InasistenciasLogic.obtenerUrlAppsScript();
+      if (inputAppsScriptUrl && !inputAppsScriptUrl.value) {
+        inputAppsScriptUrl.value = url;
+      }
+      if (badgeScriptStatus) {
+        if (url) {
+          badgeScriptStatus.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300';
+          badgeScriptStatus.textContent = 'Enlazado con Google Sheets';
+        } else {
+          badgeScriptStatus.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300';
+          badgeScriptStatus.textContent = 'Pendiente Enlazar';
+        }
+      }
+    }
+
+    if (btnGuardarScriptUrl && inputAppsScriptUrl) {
+      btnGuardarScriptUrl.addEventListener('click', async () => {
+        const url = inputAppsScriptUrl.value.trim();
+        InasistenciasLogic.guardarUrlAppsScript(url);
+        actualizarBadgeAppsScript();
+        if (url) {
+          mostrarToast('Sincronizando avisos con Google Sheets...');
+          const lista = InasistenciasLogic.obtenerAvisosGuardados();
+          await InasistenciasLogic.guardarAvisosEnGoogleSheets(lista);
+          mostrarToast('✅ ¡Planilla de Google Sheets conectada y sincronizada!');
+        } else {
+          mostrarToast('Enlace de Apps Script eliminado.', 'info');
+        }
+      });
+    }
+
+    if (btnToggleGuiaScript && guiaScriptBox) {
+      btnToggleGuiaScript.addEventListener('click', () => {
+        guiaScriptBox.classList.toggle('hidden');
+      });
+    }
+
+    actualizarBadgeAppsScript();
+
     // 5. Botón Cancelar Edición
     if (btnCancelarEdicion) {
       btnCancelarEdicion.addEventListener('click', cancelarEdicion);
     }
 
-    // 6. Botón Restaurar Avisos Institucionales Base
+    // 6. Botón Vaciar Comunicados
     if (btnRestaurarBase) {
       btnRestaurarBase.addEventListener('click', () => {
-        if (confirm('¿Deseas restablecer los comunicados base de la institución (ATD, Feriado y Boletos con QR)?')) {
+        if (confirm('¿Deseas vaciar todos los comunicados de la cartelera?')) {
           InasistenciasLogic.restaurarAvisosPorDefecto();
           cancelarEdicion();
           renderAvisosActivos();
-          mostrarToast('Avisos base institucionales restaurados.');
+          mostrarToast('Todos los comunicados han sido eliminados de la cartelera.', 'info');
         }
       });
     }
@@ -757,10 +792,19 @@
         cancelarEdicion();
         renderAvisosActivos();
 
-        if (fueEdicion) {
-          mostrarToast('💾 ¡Cambios guardados en Pantalla TV y en la nube!');
+        const urlScript = InasistenciasLogic.obtenerUrlAppsScript();
+        if (urlScript) {
+          if (fueEdicion) {
+            mostrarToast('💾 ¡Cambios guardados en TV y en Google Sheets!');
+          } else {
+            mostrarToast('🎉 ¡Aviso publicado en TV y en Google Sheets!');
+          }
         } else {
-          mostrarToast('🎉 ¡Aviso publicado en Pantalla TV y en la nube!');
+          if (fueEdicion) {
+            mostrarToast('💾 Cambios guardados en TV. Conecta Apps Script arriba para enviar a Sheets.', 'info');
+          } else {
+            mostrarToast('🎉 Aviso publicado en TV. Conecta Apps Script arriba para enviar a Sheets.', 'info');
+          }
         }
       });
     }

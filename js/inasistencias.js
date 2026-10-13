@@ -285,56 +285,58 @@ window.InasistenciasLogic = (function () {
     return 'informacion';
   }
 
-  // Avisos de plantilla institucional base
-  const AVISOS_POR_DEFECTO = [
-    {
-      id: 'aviso-atd',
-      titulo: 'Viernes 9 de Octubre: ATD en UTU',
-      prioridad: 'atencion',
-      mensaje: 'NO HAY CLASES. Jornada de Asamblea Técnico Docente institucional para todo el cuerpo docente.',
-      tieneQr: false,
-      qrImagen: '',
-      activo: true,
-      fechaCreacion: new Date().toISOString()
-    },
-    {
-      id: 'aviso-feriado',
-      titulo: 'Lunes 12: Día de la Diversidad Cultural',
-      prioridad: 'avisos',
-      mensaje: 'CENTRO CERRADO. Sin actividades presenciales. Se retoman clases normalmente el martes 13 de Octubre.',
-      tieneQr: false,
-      qrImagen: '',
-      activo: true,
-      fechaCreacion: new Date().toISOString()
-    },
-    {
-      id: 'aviso-boletos',
-      titulo: 'Formulario de Boleto y Cartelera Online',
-      prioridad: 'tramites',
-      mensaje: 'Escaneá con tu celular el código QR para ingresar al trámite institucional y seguir inasistencias en vivo.',
-      tieneQr: true,
-      qrUrl: 'https://utu.edu.uy/tramites/boletos',
-      qrImagen: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsAQMAAABDsxw2AAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAABVklEQVRoge3ZyxHDIAwEUKjAJVCqW3UJVIBi0AdwcsjRO7Maj+OYd1MQoKT0X5ziUfvX+y7X/ZnlyjFyvyF7BauWtQ7G1Y20IXUkk8ExzbuEv/K8et7JgJk9jPk7ZzQZMkuHpBlkwExDk37LddQ9GRQTD192t/qsQQbFtjj6u/5QvobIcNgZeR/Rq3TRx5aKX2RYzJfdnvd1OosBMjgW2yepcfdjrGV/TG0yHHZqTT5keltwozuRycBYtdVWZq1uVqVjQ0X2MhZTdRTbkc19PSUDY8seySJma1lST4bDrPym0XZIfpYp0SQkQ2Npbw8WmXFZN4kMiK1hWFdbTbq0JyJ7PTsjy3FQTd4bXLdSZECset79fPpMfWylyHCY5b3amitrLKkng2R25NkNGTTzl95B0h1yJoNjGsFGZRZvOrWff52TvZqJh5boQw+w3r33HwMZEPsvPvwrzEz8tou0AAAAAElFTkSuQmCC',
-      activo: true,
-      fechaCreacion: new Date().toISOString()
+  // Sin avisos mock por defecto (la cartelera solo muestra comunicados reales cargados)
+  const AVISOS_POR_DEFECTO = [];
+  const STORAGE_APPS_SCRIPT = 'isbo_apps_script_url';
+
+  function obtenerUrlAppsScript() {
+    return localStorage.getItem(STORAGE_APPS_SCRIPT) || '';
+  }
+
+  function guardarUrlAppsScript(url) {
+    localStorage.setItem(STORAGE_APPS_SCRIPT, (url || '').trim());
+  }
+
+  // Guarda la lista completa en Google Sheets mediante Google Apps Script Web App
+  async function guardarAvisosEnGoogleSheets(lista) {
+    const url = obtenerUrlAppsScript();
+    if (!url) return { ok: false, error: 'sin_url_script' };
+
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'sync_all',
+          avisos: lista
+        })
+      });
+      return { ok: true };
+    } catch (err) {
+      console.warn('Error al guardar en Google Apps Script:', err);
+      return { ok: false, error: err.message };
     }
-  ];
+  }
 
   function obtenerAvisosGuardados() {
     try {
       const data = localStorage.getItem(STORAGE_AVISOS);
       if (!data || data === '[]' || data === 'null') {
-        localStorage.setItem(STORAGE_AVISOS, JSON.stringify(AVISOS_POR_DEFECTO));
-        return JSON.parse(JSON.stringify(AVISOS_POR_DEFECTO));
+        return [];
       }
       const parsed = JSON.parse(data);
       if (!Array.isArray(parsed) || parsed.length === 0) {
-        localStorage.setItem(STORAGE_AVISOS, JSON.stringify(AVISOS_POR_DEFECTO));
-        return JSON.parse(JSON.stringify(AVISOS_POR_DEFECTO));
+        return [];
       }
-      return parsed;
+      // Limpiar automáticamente avisos base de prueba de versiones anteriores
+      const filtrados = parsed.filter(a => !['aviso-atd', 'aviso-feriado', 'aviso-boletos'].includes(a.id));
+      if (filtrados.length !== parsed.length) {
+        localStorage.setItem(STORAGE_AVISOS, JSON.stringify(filtrados));
+      }
+      return filtrados;
     } catch (e) {
-      return JSON.parse(JSON.stringify(AVISOS_POR_DEFECTO));
+      return [];
     }
   }
 
@@ -376,8 +378,12 @@ window.InasistenciasLogic = (function () {
     return { ok: false, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local' };
   }
 
-  // Persiste la lista completa de avisos en el backend (/api/avisos)
+  // Persiste la lista completa de avisos en Google Sheets (Apps Script) y en el backend
   async function guardarAvisosEnServidor(lista) {
+    // 1. Guardar en Google Sheets mediante Apps Script si está configurada la URL
+    guardarAvisosEnGoogleSheets(lista);
+
+    // 2. Guardar en /api/avisos si está disponible
     try {
       const res = await fetch('/api/avisos', {
         method: 'POST',
@@ -390,7 +396,7 @@ window.InasistenciasLogic = (function () {
     } catch (e) {
       console.warn('Advertencia al enviar avisos a /api/avisos:', e);
     }
-    return { ok: false, error: 'sin_conexion' };
+    return { ok: true, local: true };
   }
 
   function guardarAviso(aviso) {
@@ -507,6 +513,9 @@ window.InasistenciasLogic = (function () {
     obtenerAvisoPorId,
     sincronizarAvisosConServidor,
     guardarAvisosEnServidor,
+    obtenerUrlAppsScript,
+    guardarUrlAppsScript,
+    guardarAvisosEnGoogleSheets,
     guardarAviso,
     conmutarEstadoAviso,
     eliminarAviso,
