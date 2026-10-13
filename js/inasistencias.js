@@ -149,7 +149,7 @@ window.InasistenciasLogic = (function () {
     return unicos.length > 0 ? unicos : [raw.toUpperCase()];
   }
 
-  // Calcula la duración o badge para mostrar (ej: "Solo por hoy", "Último día", etc.)
+  // Calcula la duración o badge para mostrar (ej: "Solo por hoy", "Solo por mañana", "Último día", etc.)
   function calcularEstado(docente, fechaObjetivo = new Date()) {
     if (!docente.hasta) {
       return { texto: 'Período en curso', clase: 'bg-slate-100 text-slate-700 border-slate-200' };
@@ -158,16 +158,24 @@ window.InasistenciasLogic = (function () {
     const hoy = normalizar(fechaObjetivo);
     const d = normalizar(docente.desde);
     const h = normalizar(docente.hasta);
+    const fechaActual = normalizar(new Date());
+    const esHoy = fechaActual && hoy && (fechaActual.getTime() === hoy.getTime());
 
     const diferenciaDias = Math.round((h.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diferenciaDias === 0) {
       if (d && d.getTime() === h.getTime()) {
-        return { texto: 'Solo por hoy', clase: 'bg-slate-100 text-slate-700 border-slate-200' };
+        return { 
+          texto: esHoy ? 'Solo por hoy' : 'Solo por mañana', 
+          clase: 'bg-slate-100 text-slate-700 border-slate-200' 
+        };
       }
       return { texto: 'Último día', clase: 'bg-amber-100 text-amber-800 border-amber-300' };
     } else if (diferenciaDias === 1) {
-      return { texto: 'Hasta mañana', clase: 'bg-amber-50 text-amber-800 border-amber-200' };
+      return { 
+        texto: esHoy ? 'Hasta mañana' : '1 día restante', 
+        clase: 'bg-amber-50 text-amber-800 border-amber-200' 
+      };
     } else if (diferenciaDias > 1) {
       return { texto: `${diferenciaDias} días restantes`, clase: 'bg-slate-100 text-slate-600 border-slate-200' };
     }

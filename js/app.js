@@ -47,11 +47,26 @@
 
   // Refresca la vista completa en pantalla TV
   function actualizarPantalla() {
-    // 1. Filtrar únicamente inasistencias de HOY
-    const ausentesHoy = InasistenciasLogic.filtrarInasistenciasDeHoy(datosCargados.docentes, new Date());
-    UI.renderDocentesDeHoy('lista-docentes', ausentesHoy, new Date());
+    const ahora = new Date();
+    const manana = new Date(ahora);
+    manana.setDate(manana.getDate() + 1);
 
-    // 2. Renderizar avisos institucionales (desde el formulario / LocalStorage / Cloud)
+    // 1. Filtrar inasistencias de HOY y de MAÑANA
+    const ausentesHoy = InasistenciasLogic.filtrarInasistenciasDeHoy(datosCargados.docentes, ahora);
+    const ausentesManana = InasistenciasLogic.filtrarInasistenciasDeHoy(datosCargados.docentes, manana);
+
+    // 2. Obtener avisos vigentes para el cálculo de columnas
+    const avisosGuardados = InasistenciasLogic.obtenerAvisosGuardados();
+    const avisosActivos = avisosGuardados.filter(a => a.activo !== false);
+
+    // 3. Ajustar proporciones y visibilidad dinámica de 3 columnas
+    UI.ajustarLayout(ausentesHoy.length, ausentesManana.length, avisosActivos.length);
+
+    // 4. Renderizar listas
+    UI.renderDocentesDeHoy('lista-docentes', ausentesHoy, ahora);
+    UI.renderDocentesDeManana('lista-docentes-manana', ausentesManana, manana);
+
+    // 5. Renderizar avisos institucionales (desde el formulario / LocalStorage / Cloud)
     UI.renderAvisosConMarquee('contenedor-avisos');
   }
 
@@ -60,7 +75,7 @@
     try {
       const res = await InasistenciasLogic.sincronizarAvisosConServidor();
       if ((res && res.cambio) || forzarRender) {
-        UI.renderAvisosConMarquee('contenedor-avisos');
+        actualizarPantalla();
       }
     } catch (e) {
       console.warn('Advertencia al sincronizar avisos en servidor (usando local):', e);

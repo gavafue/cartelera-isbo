@@ -64,60 +64,110 @@
   </header>
 
   <!-- ========================================================================= -->
-  <!-- 2. CONTENIDO PRINCIPAL: Inasistencias de Hoy (68%) y Avisos con Marquee (32%) -->
+  <!-- 2. CONTENIDO PRINCIPAL: Layout Dinámico en 3 Columnas                     -->
+  <!--    - Inasistencias Hoy                                                    -->
+  <!--    - Inasistencias Mañana                                                 -->
+  <!--    - Avisos Bedelía (Formato Cápsula / Feed)                              -->
   <!-- ========================================================================= -->
-  <main class="flex-1 w-full p-3.5 sm:p-4 overflow-hidden grid grid-cols-12 gap-3.5 sm:gap-4 items-stretch min-h-0">
-    <!-- COLUMNA IZQUIERDA: Inasistencias -->
-    <section class="col-span-12 lg:col-span-8 flex flex-col h-full bg-white rounded-2xl shadow-lg border-2 border-slate-200/90 overflow-hidden">
-      <!-- Encabezado Compacto: Inasistencias -->
-      <div class="px-5 py-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white shrink-0 flex items-center justify-between shadow-sm">
-        <div class="flex items-center gap-2.5">
+  <main id="layout-principal" class="flex-1 w-full p-3 sm:p-4 overflow-hidden flex flex-row gap-3 sm:gap-4 items-stretch min-h-0">
+    <!-- COLUMNA 1: INASISTENCIAS HOY -->
+    <section id="columna-hoy" class="flex flex-col h-full bg-white rounded-2xl shadow-lg border-2 border-slate-200/90 overflow-hidden transition-all duration-300 min-w-0">
+      <!-- Encabezado Compacto: Inasistencias Hoy -->
+      <div class="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white shrink-0 flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-2.5 min-w-0">
           <div class="h-7 w-7 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 border border-white/30">
             <span class="material-symbols-outlined text-white text-lg">person_cancel</span>
           </div>
-          <h2 class="text-base sm:text-lg font-black tracking-wide uppercase leading-none">Inasistencias</h2>
+          <h2 class="text-sm sm:text-base font-black tracking-wide uppercase leading-none truncate">Inasistencias Hoy</h2>
         </div>
         <div class="flex items-center gap-1.5 bg-white/20 px-2.5 py-1 rounded-lg border border-white/30 shrink-0">
-          <span class="text-base font-black text-white leading-none" id="contador-docentes">0</span>
-          <span class="text-[11px] font-bold uppercase tracking-wider text-white">Docentes</span>
+          <span class="text-sm sm:text-base font-black text-white leading-none" id="contador-docentes">0</span>
+          <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-white">Docentes</span>
         </div>
       </div>
 
       <!-- Cabecera de Columnas -->
-      <div class="px-6 py-2.5 bg-slate-100/90 border-b border-slate-200 grid grid-cols-12 text-xs font-extrabold uppercase tracking-wider text-slate-600 shrink-0">
-        <div class="col-span-5">Profesor / Docente</div>
-        <div class="col-span-4">Grupo(s) Afectado(s)</div>
-        <div class="col-span-3 text-right">Duración / Detalle</div>
+      <div class="px-4 sm:px-6 py-2 bg-slate-100/90 border-b border-slate-200 grid grid-cols-12 text-xs font-extrabold uppercase tracking-wider text-slate-600 shrink-0">
+        <div class="col-span-5 truncate">Profesor / Docente</div>
+        <div class="col-span-4 truncate">Grupo(s) Afectado(s)</div>
+        <div class="col-span-3 text-right truncate">Duración / Detalle</div>
       </div>
 
       <!-- Contenedor con lista de docentes y desplazamiento continuo -->
-      <div class="flex-1 overflow-hidden relative p-4 bg-slate-50/60" id="contenedor-scroll-docentes">
-        <div class="space-y-3.5" id="lista-docentes">
+      <div class="flex-1 overflow-hidden relative p-3 sm:p-4 bg-slate-50/60" id="contenedor-scroll-docentes">
+        <div class="space-y-3" id="lista-docentes">
           <!-- Tarjetas generadas dinámicamente -->
         </div>
       </div>
     </section>
 
-    <!-- COLUMNA DERECHA: Solo los Avisos con Marquesina Vertical (Sin Header de Panel) -->
-    <aside class="col-span-12 lg:col-span-4 flex flex-col h-full overflow-hidden">
-      <!-- Lista de avisos institucionales con MARQUESINA VERTICAL continua -->
-      <div class="flex-1 overflow-hidden relative min-h-0" id="contenedor-scroll-avisos">
-        <div class="space-y-4" id="contenedor-avisos">
+    <!-- COLUMNA 2: INASISTENCIAS MAÑANA -->
+    <section id="columna-manana" class="flex flex-col h-full bg-white rounded-2xl shadow-lg border-2 border-slate-200/90 overflow-hidden transition-all duration-300 min-w-0">
+      <!-- Encabezado Compacto: Inasistencias Mañana -->
+      <div class="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-sky-700 via-indigo-700 to-indigo-800 text-white shrink-0 flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="h-7 w-7 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 border border-white/30">
+            <span class="material-symbols-outlined text-white text-lg">event_upcoming</span>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+            <h2 class="text-sm sm:text-base font-black tracking-wide uppercase leading-none whitespace-nowrap">Inasistencias Mañana</h2>
+            <span id="fecha-manana" class="text-[10px] sm:text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded border border-white/30 truncate">Cargando fecha...</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 bg-white/20 px-2.5 py-1 rounded-lg border border-white/30 shrink-0">
+          <span class="text-sm sm:text-base font-black text-white leading-none" id="contador-docentes-manana">0</span>
+          <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-white">Docentes</span>
+        </div>
+      </div>
+
+      <!-- Cabecera de Columnas -->
+      <div class="px-4 sm:px-6 py-2 bg-slate-100/90 border-b border-slate-200 grid grid-cols-12 text-xs font-extrabold uppercase tracking-wider text-slate-600 shrink-0">
+        <div class="col-span-5 truncate">Profesor / Docente</div>
+        <div class="col-span-4 truncate">Grupo(s) Afectado(s)</div>
+        <div class="col-span-3 text-right truncate">Duración / Detalle</div>
+      </div>
+
+      <!-- Contenedor con lista de docentes mañana -->
+      <div class="flex-1 overflow-hidden relative p-3 sm:p-4 bg-slate-50/60" id="contenedor-scroll-docentes-manana">
+        <div class="space-y-3" id="lista-docentes-manana">
+          <!-- Tarjetas generadas dinámicamente -->
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMNA 3: AVISOS BEDELÍA (Cápsulas / Feed) -->
+    <aside id="columna-avisos" class="flex flex-col h-full bg-white rounded-2xl shadow-lg border-2 border-slate-200/90 overflow-hidden transition-all duration-300 min-w-0">
+      <!-- Encabezado Compacto: Avisos Bedelía -->
+      <div class="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 text-white shrink-0 flex items-center justify-between shadow-sm border-b border-slate-700">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="h-7 w-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
+            <span class="material-symbols-outlined text-[#F8E124] text-lg">campaign</span>
+          </div>
+          <h2 class="text-sm sm:text-base font-black tracking-wide uppercase leading-none truncate">Avisos Bedelía</h2>
+        </div>
+        <div class="flex items-center gap-1.5 bg-white/15 px-2.5 py-1 rounded-lg border border-white/20 shrink-0">
+          <span class="text-sm sm:text-base font-black text-[#F8E124] leading-none" id="contador-avisos">0</span>
+          <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-white">Avisos</span>
+        </div>
+      </div>
+
+      <!-- Contenedor con lista de avisos institucionales con marquesina vertical continua -->
+      <div class="flex-1 overflow-hidden relative p-3 bg-slate-50/60 min-h-0" id="contenedor-scroll-avisos">
+        <div class="space-y-3" id="contenedor-avisos">
           <!-- Tarjetas generadas dinámicamente con marquesina -->
         </div>
       </div>
     </aside>
   </main>
 
-
-
   <!-- ========================================================================= -->
-  <!-- 4. SCRIPTS MODULARIZADOS VANILLA                                          -->
+  <!-- 3. SCRIPTS MODULARIZADOS VANILLA                                          -->
+  <!-- ========================================================================= -->
   <script src="js/qrcode.min.js"></script>
-  <script src="js/sheet.js?v=4.2"></script>
-  <script src="js/inasistencias.js?v=4.2"></script>
-  <script src="js/ui.js?v=4.2"></script>
-  <script src="js/app.js?v=4.2"></script>
+  <script src="js/sheet.js?v=4.3"></script>
+  <script src="js/inasistencias.js?v=4.3"></script>
+  <script src="js/ui.js?v=4.3"></script>
+  <script src="js/app.js?v=4.3"></script>
 
 </body>
 </html>
