@@ -83,32 +83,70 @@ window.InasistenciasLogic = (function () {
       return ['TODOS LOS GRUPOS'];
     }
 
-    // Dividir por comas, puntos y comas, barras, signos más, o palabras ' y ', ' e '
-    const segmentos = raw.split(/[,;\/\+\n]|\s+[ye]\s+/i).map(t => t.trim()).filter(Boolean);
+    // 1. Limpieza y normalización previa
+    let limpio = raw
+      // Tildes y caracteres de teclado alternativos para ordinales (~, ^, *)
+      .replace(/(\d+)\s*[\~|\^|\*]\s*/g, '$1° ')
+      // Palabras de ruido: año, ano, anio, grado, curso, nivel
+      .replace(/\b(?:año|anio|ano|grado|curso|nivel)s?\b\.?/gi, ' ')
+      // Ordinales en letras: 1ero, 1er, 2do, 3ro, 4to, 5to, 6to (con o sin punto)
+      .replace(/(\d+)\s*(?:ero|er|ro|do|to)\b\.?/gi, '$1° ')
+      // Normalizar signos de grado
+      .replace(/(\d+)\s*[º°]\s*/g, '$1° ')
+      // Separar números pegados a letras si no hay espacio (ej: 3mg -> 3° MG, 3mf -> 3° MF)
+      .replace(/(^|[\s,;\/\+\-])(\d+)\s*([a-zA-Z]{1,4})(?=[,\s;\/\+\-]|$)/g, '$1$2° $3');
+
+    // 2. Separar en segmentos por separadores habituales: comas, punto y coma, barras, signos más, 'y', 'e', guiones entre espacios
+    const segmentos = limpio
+      .split(/[,;\/\+\n]|\s+[ye]\s+|\s+-\s+/i)
+      .map(t => t.trim())
+      .filter(Boolean);
+
     const resultado = [];
+    let ultimoAnio = null;
 
     segmentos.forEach(seg => {
-      // Buscar patrones con número + ordinal opcional (º/°/ero/do/to) + letras (ej: 2mk, 1ºmm, 3 ma)
-      const matchesMulti = seg.match(/(\d+)\s*(?:ero|er|ro|do|to|º|°)?\s*([a-zA-Z]+)/g);
-      if (matchesMulti && matchesMulti.length > 0) {
+      // Caso A: Tiene número de año explícito + letras: ej '3° MG', '1° MI', '2° MF'
+      const matchConAnio = seg.match(/^(\d+)\s*(?:°)?\s*([a-zA-Z0-9]+)$/);
+      if (matchConAnio) {
+        ultimoAnio = matchConAnio[1];
+        resultado.push(`${ultimoAnio}° ${matchConAnio[2].toUpperCase()}`);
+        return;
+      }
+
+      // Caso B: Múltiples grupos juntos en un mismo segmento: ej '3° MG 3° MF'
+      const matchesMulti = [...seg.matchAll(/(\d+)\s*(?:°)?\s*([a-zA-Z0-9]+)/g)];
+      if (matchesMulti.length > 0) {
         matchesMulti.forEach(m => {
-          const parts = m.match(/(\d+)\s*(?:ero|er|ro|do|to|º|°)?\s*([a-zA-Z]+)/);
-          if (parts) {
-            resultado.push(`${parts[1]}° ${parts[2].toUpperCase()}`);
-          }
+          ultimoAnio = m[1];
+          resultado.push(`${m[1]}° ${m[2].toUpperCase()}`);
         });
-      } else {
-        // Cursos con siglas previas: 'FPB 1', 'EMP 2', 'EMT 3'
-        const courseMatch = seg.match(/^([a-zA-Z\.\s]+?)\s*(\d+)$/);
-        if (courseMatch) {
-          resultado.push(`${courseMatch[1].trim().toUpperCase()} ${courseMatch[2]}°`);
-        } else {
-          resultado.push(seg.toUpperCase());
-        }
+        return;
+      }
+
+      // Caso C: Cursos especiales con siglas iniciales como 'FPB 1', 'EMP 2', 'EMT 3'
+      const matchEspecial = seg.match(/^([a-zA-Z\.\s]+?)\s*(\d+)$/);
+      if (matchEspecial && !['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'].includes(matchEspecial[1].trim().toUpperCase())) {
+        resultado.push(`${matchEspecial[1].trim().toUpperCase()} ${matchEspecial[2]}°`);
+        return;
+      }
+
+      // Caso D: Letras solas (ej 'MF', 'B', 'MG', 'C') que heredan el año del grupo anterior (ej: '3ro MG y MF' -> '3° MG' y '3° MF')
+      const matchSoloLetras = seg.match(/^([a-zA-Z0-9]+)$/);
+      if (matchSoloLetras && ultimoAnio) {
+        resultado.push(`${ultimoAnio}° ${matchSoloLetras[1].toUpperCase()}`);
+        return;
+      }
+
+      // Caso E: Si no calza pero tiene contenido, agregarlo limpio en mayúsculas
+      if (seg) {
+        resultado.push(seg.toUpperCase());
       }
     });
 
-    return resultado.length > 0 ? resultado : [raw.toUpperCase()];
+    // Eliminar duplicados si los hubiera preservando el orden
+    const unicos = [...new Set(resultado)];
+    return unicos.length > 0 ? unicos : [raw.toUpperCase()];
   }
 
   // Calcula la duración o badge para mostrar (ej: "Solo por hoy", "Último día", etc.)
