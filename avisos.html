@@ -302,13 +302,17 @@
             </div>
           </div>
 
-          <!-- Botones de Acción: Publicar / Guardar y Cancelar -->
-          <div class="pt-2 flex items-center gap-3">
-            <button type="submit" id="btn-submit-aviso" class="flex-1 py-3.5 px-6 rounded-xl bg-[#00489A] hover:bg-[#003878] text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
+          <!-- Botones de Acción: Publicar / Guardar, Eliminar y Cancelar -->
+          <div class="pt-2 flex items-center gap-2.5 flex-wrap">
+            <button type="submit" id="btn-submit-aviso" class="flex-1 min-w-[200px] py-3.5 px-6 rounded-xl bg-[#00489A] hover:bg-[#003878] text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
               <span class="material-symbols-outlined text-xl" id="btn-submit-icon">send</span>
               <span id="btn-submit-texto">Publicar Aviso en Pantalla TV</span>
             </button>
-            <button type="button" id="btn-cancelar-edicion" class="hidden py-3.5 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm border-2 border-slate-300 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+            <button type="button" id="btn-eliminar-form" class="hidden py-3.5 px-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-sm border-2 border-red-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer" title="Eliminar este comunicado de la cartelera y de Google Sheets">
+              <span class="material-symbols-outlined text-lg">delete</span>
+              <span>Eliminar</span>
+            </button>
+            <button type="button" id="btn-cancelar-edicion" class="hidden py-3.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm border-2 border-slate-300 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
               <span class="material-symbols-outlined text-lg">close</span>
               <span>Cancelar</span>
             </button>
@@ -389,17 +393,51 @@
   </main>
 
   <!-- ========================================================================= -->
-  <!-- 3. TOAST CONTAINER PARA NOTIFICACIONES                                   -->
+  <!-- 3. MODAL INTERACTIVO DE CONFIRMACIÓN / MENSAJES INSTITUCIONALES           -->
+  <!-- ========================================================================= -->
+  <div id="modal-confirmacion" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4 transition-all duration-200">
+    <div class="bg-white rounded-3xl shadow-2xl border-2 border-slate-200 max-w-md w-full p-6 sm:p-7 relative transform transition-all scale-95 opacity-0 duration-200" id="modal-confirmacion-box">
+      <!-- Icono contextual -->
+      <div class="flex items-center gap-3.5 mb-4">
+        <div id="modal-icono-container" class="h-12 w-12 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold shrink-0">
+          <span class="material-symbols-outlined text-2xl" id="modal-icono">help_outline</span>
+        </div>
+        <div>
+          <h3 class="text-base font-black text-slate-900" id="modal-titulo">Confirmación Requerida</h3>
+          <p class="text-xs text-slate-500 font-medium" id="modal-subtitulo">ISBO · Gestión de Cartelera</p>
+        </div>
+      </div>
+
+      <!-- Mensaje detallado -->
+      <p class="text-sm text-slate-700 font-medium leading-relaxed mb-6" id="modal-mensaje">
+        ¿Estás seguro de que deseas continuar con esta acción?
+      </p>
+
+      <!-- Botones de Acción -->
+      <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+        <button type="button" id="modal-btn-cancelar" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition-colors cursor-pointer">
+          Cancelar
+        </button>
+        <button type="button" id="modal-btn-confirmar" class="px-5 py-2.5 rounded-xl bg-[#00489A] hover:bg-[#003878] text-white font-extrabold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-base" id="modal-btn-confirmar-icon">check</span>
+          <span id="modal-btn-confirmar-texto">Confirmar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 4. TOAST CONTAINER PARA NOTIFICACIONES                                   -->
   <!-- ========================================================================= -->
   <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- ========================================================================= -->
-  <!-- 4. SCRIPTS MODULARIZADOS VANILLA                                          -->
+  <!-- 5. SCRIPTS MODULARIZADOS VANILLA                                          -->
   <!-- ========================================================================= -->
   <script src="js/qrcode.min.js"></script>
-  <script src="js/sheet.js?v=3.2"></script>
-  <script src="js/inasistencias.js?v=3.2"></script>
-  <script src="js/avisos-admin.js?v=3.3"></script>
+  <script src="js/sheet.js?v=3.4"></script>
+  <script src="js/inasistencias.js?v=3.4"></script>
+  <script src="js/avisos-admin.js?v=3.4"></script>
 
 </body>
 </html>

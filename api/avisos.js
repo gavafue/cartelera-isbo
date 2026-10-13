@@ -139,7 +139,7 @@ async function obtenerDeGoogleSheets() {
         fuente: 'google-sheets'
       });
     }
-    return avisos.length ? avisos : null;
+    return avisos;
   } catch (err) {
     console.warn('Error leyendo pestaña Avisos en serverless:', err);
     return null;
@@ -176,7 +176,7 @@ module.exports = async function handler(req, res) {
     try {
       // 1. Prioridad: Pestaña Avisos de Google Sheets
       const avisosSheets = await obtenerDeGoogleSheets();
-      if (avisosSheets && Array.isArray(avisosSheets) && avisosSheets.length > 0) {
+      if (Array.isArray(avisosSheets)) {
         res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=10');
         return res.status(200).json({
           ok: true,

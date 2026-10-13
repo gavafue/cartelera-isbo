@@ -390,7 +390,7 @@ window.InasistenciasLogic = (function () {
       // 1. Prioridad: Pestaña 'Avisos' de la planilla Google Sheets institucional
       if (typeof SheetAPI !== 'undefined' && typeof SheetAPI.obtenerAvisos === 'function') {
         const avisosSheet = await SheetAPI.obtenerAvisos();
-        if (Array.isArray(avisosSheet) && avisosSheet.length > 0) {
+        if (Array.isArray(avisosSheet)) {
           const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
           const nuevoStr = JSON.stringify(avisosSheet);
           const huboCambio = anteriorStr !== nuevoStr;
@@ -403,7 +403,7 @@ window.InasistenciasLogic = (function () {
       const res = await fetch('/api/avisos');
       if (res.ok) {
         const data = await res.json();
-        if (data && Array.isArray(data.avisos) && data.avisos.length > 0) {
+        if (data && Array.isArray(data.avisos)) {
           const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
           const nuevoStr = JSON.stringify(data.avisos);
           const huboCambio = anteriorStr !== nuevoStr;
@@ -420,7 +420,7 @@ window.InasistenciasLogic = (function () {
   // Persiste la lista completa de avisos en Google Sheets (Apps Script) y en el backend
   async function guardarAvisosEnServidor(lista) {
     // 1. Guardar en Google Sheets mediante Apps Script si está configurada la URL
-    guardarAvisosEnGoogleSheets(lista);
+    await guardarAvisosEnGoogleSheets(lista);
 
     // 2. Guardar en /api/avisos si está disponible
     try {
@@ -438,7 +438,7 @@ window.InasistenciasLogic = (function () {
     return { ok: true, local: true };
   }
 
-  function guardarAviso(aviso) {
+  async function guardarAviso(aviso) {
     const lista = obtenerAvisosGuardados();
     const prioridadNormalizada = normalizarCategoria(aviso.prioridad);
 
@@ -457,7 +457,7 @@ window.InasistenciasLogic = (function () {
           activo: aviso.activo !== undefined ? aviso.activo : lista[index].activo
         };
         localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
-        guardarAvisosEnServidor(lista);
+        await guardarAvisosEnServidor(lista);
         return lista[index];
       }
     }
@@ -476,31 +476,32 @@ window.InasistenciasLogic = (function () {
     };
     lista.unshift(nuevo);
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
-    guardarAvisosEnServidor(lista);
+    await guardarAvisosEnServidor(lista);
     return nuevo;
   }
 
-  function conmutarEstadoAviso(id) {
+  async function conmutarEstadoAviso(id) {
     let lista = obtenerAvisosGuardados();
     const aviso = lista.find(a => a.id === id);
     if (aviso) {
       aviso.activo = aviso.activo === false ? true : false;
       localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
-      guardarAvisosEnServidor(lista);
+      await guardarAvisosEnServidor(lista);
     }
     return aviso;
   }
 
-  function eliminarAviso(id) {
+  async function eliminarAviso(id) {
     let lista = obtenerAvisosGuardados();
     lista = lista.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
-    guardarAvisosEnServidor(lista);
+    await guardarAvisosEnServidor(lista);
+    return lista;
   }
 
-  function restaurarAvisosPorDefecto() {
+  async function restaurarAvisosPorDefecto() {
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(AVISOS_POR_DEFECTO));
-    guardarAvisosEnServidor(AVISOS_POR_DEFECTO);
+    await guardarAvisosEnServidor(AVISOS_POR_DEFECTO);
     return JSON.parse(JSON.stringify(AVISOS_POR_DEFECTO));
   }
 

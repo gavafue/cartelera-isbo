@@ -149,6 +149,20 @@
   const btnSubmitTexto = document.getElementById('btn-submit-texto');
   const btnSubmitIcon = document.getElementById('btn-submit-icon');
   const btnCancelarEdicion = document.getElementById('btn-cancelar-edicion');
+  const btnEliminarForm = document.getElementById('btn-eliminar-form');
+
+  // Elementos del Modal Institucional de Confirmación / Alertas
+  const modalConfirmacion = document.getElementById('modal-confirmacion');
+  const modalConfirmacionBox = document.getElementById('modal-confirmacion-box');
+  const modalTitulo = document.getElementById('modal-titulo');
+  const modalSubtitulo = document.getElementById('modal-subtitulo');
+  const modalMensaje = document.getElementById('modal-mensaje');
+  const modalIcono = document.getElementById('modal-icono');
+  const modalIconoContainer = document.getElementById('modal-icono-container');
+  const modalBtnCancelar = document.getElementById('modal-btn-cancelar');
+  const modalBtnConfirmar = document.getElementById('modal-btn-confirmar');
+  const modalBtnConfirmarIcon = document.getElementById('modal-btn-confirmar-icon');
+  const modalBtnConfirmarTexto = document.getElementById('modal-btn-confirmar-texto');
 
   // Elementos de la columna derecha
   const previewContainer = document.getElementById('preview-card-container');
@@ -210,6 +224,137 @@
       toast.classList.add('opacity-0', '-translate-y-2');
       setTimeout(() => toast.remove(), 300);
     }, 3500);
+  }
+
+  /**
+   * Muestra un modal de confirmación interactivo accesible y visualmente integrado.
+   * Reemplaza las ventanas emergentes nativas (confirm/alert) del navegador.
+   * Retorna una Promesa que resuelve en true (confirmado) o false (cancelado).
+   */
+  function mostrarModalConfirmacion({
+    titulo = '¿Confirmar acción?',
+    subtitulo = 'ISBO · Gestión de Cartelera',
+    mensaje = '¿Estás seguro de que deseas continuar?',
+    tipo = 'info', // 'info' | 'peligro' | 'advertencia' | 'exito'
+    icono = null,
+    textoConfirmar = 'Confirmar',
+    iconoConfirmar = 'check',
+    textoCancelar = 'Cancelar'
+  } = {}) {
+    return new Promise((resolve) => {
+      if (!modalConfirmacion || !modalConfirmacionBox) {
+        resolve(window.confirm(mensaje.replace(/<[^>]+>/g, '')));
+        return;
+      }
+
+      if (modalTitulo) modalTitulo.textContent = titulo;
+      if (modalSubtitulo) modalSubtitulo.textContent = subtitulo;
+      if (modalMensaje) modalMensaje.innerHTML = mensaje;
+
+      // Icono contextual y esquemas de color
+      let ic = icono;
+      let containerClases = 'bg-sky-100 text-sky-800';
+      let btnClases = 'bg-[#00489A] hover:bg-[#003878] text-white';
+
+      if (tipo === 'peligro' || tipo === 'danger') {
+        ic = ic || 'delete_forever';
+        containerClases = 'bg-red-100 text-red-700';
+        btnClases = 'bg-red-600 hover:bg-red-700 text-white';
+      } else if (tipo === 'advertencia' || tipo === 'warning') {
+        ic = ic || 'warning';
+        containerClases = 'bg-amber-100 text-amber-800';
+        btnClases = 'bg-amber-600 hover:bg-amber-700 text-white';
+      } else if (tipo === 'exito' || tipo === 'success') {
+        ic = ic || 'check_circle';
+        containerClases = 'bg-emerald-100 text-emerald-800';
+        btnClases = 'bg-emerald-600 hover:bg-emerald-700 text-white';
+      } else {
+        ic = ic || 'help_outline';
+      }
+
+      if (modalIcono) modalIcono.textContent = ic;
+      if (modalIconoContainer) modalIconoContainer.className = `h-12 w-12 rounded-2xl flex items-center justify-center font-bold shrink-0 ${containerClases}`;
+
+      if (modalBtnConfirmar) {
+        modalBtnConfirmar.className = `px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer ${btnClases}`;
+      }
+      if (modalBtnConfirmarTexto) modalBtnConfirmarTexto.textContent = textoConfirmar;
+      if (modalBtnConfirmarIcon) modalBtnConfirmarIcon.textContent = iconoConfirmar;
+
+      const esAlertaSimple = textoCancelar === null || textoCancelar === false;
+      if (modalBtnCancelar) {
+        if (esAlertaSimple) {
+          modalBtnCancelar.classList.add('hidden');
+        } else {
+          modalBtnCancelar.classList.remove('hidden');
+          modalBtnCancelar.textContent = textoCancelar;
+        }
+      }
+
+      let resuelto = false;
+      const finalizar = (resultado) => {
+        if (resuelto) return;
+        resuelto = true;
+        modalConfirmacionBox.classList.remove('scale-100', 'opacity-100');
+        modalConfirmacionBox.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+          modalConfirmacion.classList.add('hidden');
+          limpiarListeners();
+          resolve(resultado);
+        }, 150);
+      };
+
+      const onConfirmar = () => finalizar(true);
+      const onCancelar = () => finalizar(false);
+      const onBackdrop = (e) => {
+        if (e.target === modalConfirmacion) finalizar(false);
+      };
+      const onKeydown = (e) => {
+        if (e.key === 'Escape') finalizar(false);
+      };
+
+      const limpiarListeners = () => {
+        if (modalBtnConfirmar) modalBtnConfirmar.removeEventListener('click', onConfirmar);
+        if (modalBtnCancelar) modalBtnCancelar.removeEventListener('click', onCancelar);
+        modalConfirmacion.removeEventListener('click', onBackdrop);
+        document.removeEventListener('keydown', onKeydown);
+      };
+
+      if (modalBtnConfirmar) modalBtnConfirmar.addEventListener('click', onConfirmar);
+      if (modalBtnCancelar) modalBtnCancelar.addEventListener('click', onCancelar);
+      modalConfirmacion.addEventListener('click', onBackdrop);
+      document.addEventListener('keydown', onKeydown);
+
+      modalConfirmacion.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        modalConfirmacionBox.classList.remove('scale-95', 'opacity-0');
+        modalConfirmacionBox.classList.add('scale-100', 'opacity-100');
+        if (modalBtnConfirmar) modalBtnConfirmar.focus();
+      });
+    });
+  }
+
+  /**
+   * Muestra un modal informativo de alerta con un solo botón de confirmación ("Entendido").
+   */
+  function mostrarModalAlerta({
+    titulo = 'Información',
+    subtitulo = 'ISBO · Gestión de Cartelera',
+    mensaje = '',
+    tipo = 'exito',
+    icono = 'check_circle',
+    textoBoton = 'Entendido'
+  } = {}) {
+    return mostrarModalConfirmacion({
+      titulo,
+      subtitulo,
+      mensaje,
+      tipo,
+      icono,
+      textoConfirmar: textoBoton,
+      iconoConfirmar: 'done',
+      textoCancelar: null
+    });
   }
 
   // Paleta de estilos visuales según las 6 categorías educativas oficiales
@@ -442,6 +587,7 @@
     btnSubmitTexto.textContent = 'Guardar Cambios del Aviso';
     btnSubmitIcon.textContent = 'save';
     btnCancelarEdicion.classList.remove('hidden');
+    if (btnEliminarForm) btnEliminarForm.classList.remove('hidden');
 
     actualizarVistaPrevia();
     actualizarContadores();
@@ -474,6 +620,7 @@
     btnSubmitTexto.textContent = 'Publicar Aviso en Pantalla TV';
     btnSubmitIcon.textContent = 'send';
     btnCancelarEdicion.classList.add('hidden');
+    if (btnEliminarForm) btnEliminarForm.classList.add('hidden');
 
     actualizarVistaPrevia();
     actualizarContadores();
@@ -634,9 +781,9 @@
 
     // Eventos para Botones Pausar / Activar
     listaAvisosActivos.querySelectorAll('.btn-toggle-aviso').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        const aviso = InasistenciasLogic.conmutarEstadoAviso(id);
+        const aviso = await InasistenciasLogic.conmutarEstadoAviso(id);
         renderAvisosActivos();
         if (aviso) {
           const estado = aviso.activo !== false ? 'activado en Pantalla TV' : 'pausado y oculto';
@@ -647,18 +794,31 @@
 
     // Eventos para Botones Eliminar
     listaAvisosActivos.querySelectorAll('.btn-eliminar-aviso').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
         const aviso = InasistenciasLogic.obtenerAvisoPorId(id);
         const titulo = aviso ? `"${aviso.titulo}"` : 'este aviso';
-        if (confirm(`¿Deseas eliminar definitivamente ${titulo} de la cartelera?`)) {
-          if (inputAvisoId.value === id) {
-            cancelarEdicion();
-          }
-          InasistenciasLogic.eliminarAviso(id);
-          renderAvisosActivos();
-          mostrarToast('Aviso eliminado correctamente.', 'info');
+
+        const confirmado = await mostrarModalConfirmacion({
+          titulo: 'Eliminar Comunicado',
+          mensaje: `¿Deseas eliminar definitivamente el aviso <strong>${titulo}</strong>?<br><br><span class="text-xs text-red-600 font-bold">Se quitará de la Pantalla TV y se borrará de la pestaña Avisos en Google Sheets.</span>`,
+          tipo: 'peligro',
+          icono: 'delete_forever',
+          textoConfirmar: 'Eliminar Comunicado',
+          iconoConfirmar: 'delete',
+          textoCancelar: 'Cancelar'
+        });
+
+        if (!confirmado) return;
+
+        if (inputAvisoId.value === id) {
+          cancelarEdicion();
         }
+
+        mostrarToast('Eliminando de la cartelera y de Google Sheets...', 'info');
+        await InasistenciasLogic.eliminarAviso(id);
+        renderAvisosActivos();
+        mostrarToast('Aviso eliminado correctamente.', 'info');
       });
     });
   }
@@ -790,8 +950,18 @@
     }
 
     if (btnLogout) {
-      btnLogout.addEventListener('click', () => {
-        if (confirm('¿Deseas cerrar la sesión de administración?')) {
+      btnLogout.addEventListener('click', async () => {
+        const confirmado = await mostrarModalConfirmacion({
+          titulo: 'Cerrar Sesión Administrativa',
+          mensaje: '¿Deseas cerrar la sesión de administración de la cartelera ISBO?',
+          tipo: 'advertencia',
+          icono: 'logout',
+          textoConfirmar: 'Cerrar Sesión',
+          iconoConfirmar: 'logout',
+          textoCancelar: 'Permanecer conectado'
+        });
+
+        if (confirmado) {
           cerrarSesionSegura();
           if (authOverlay) authOverlay.classList.remove('hidden');
           if (formLogin) formLogin.reset();
@@ -893,11 +1063,56 @@
       btnCancelarEdicion.addEventListener('click', cancelarEdicion);
     }
 
+    // 5b. Botón Eliminar desde el Formulario (Modo Edición)
+    if (btnEliminarForm) {
+      btnEliminarForm.addEventListener('click', async () => {
+        const id = inputAvisoId.value.trim();
+        if (!id) return;
+        const aviso = InasistenciasLogic.obtenerAvisoPorId(id);
+        const titulo = aviso ? `"${aviso.titulo}"` : 'este aviso';
+
+        const confirmado = await mostrarModalConfirmacion({
+          titulo: 'Eliminar Comunicado',
+          mensaje: `¿Confirmas que deseas eliminar definitivamente ${titulo}?<br><br><span class="text-xs text-red-600 font-bold">Esta acción borrará el aviso de la Pantalla TV y de la pestaña Avisos en Google Sheets.</span>`,
+          tipo: 'peligro',
+          icono: 'delete_forever',
+          textoConfirmar: 'Sí, Eliminar Definitivamente',
+          iconoConfirmar: 'delete',
+          textoCancelar: 'Cancelar'
+        });
+
+        if (!confirmado) return;
+
+        mostrarToast('Eliminando aviso de la cartelera y de Google Sheets...', 'info');
+        await InasistenciasLogic.eliminarAviso(id);
+        cancelarEdicion();
+        renderAvisosActivos();
+        mostrarToast('Aviso eliminado correctamente.', 'info');
+        await mostrarModalAlerta({
+          titulo: 'Comunicado Eliminado',
+          mensaje: `El aviso ${titulo} ha sido eliminado con éxito de la Pantalla TV y de la planilla Google Sheets.`,
+          tipo: 'exito',
+          icono: 'delete_sweep'
+        });
+      });
+    }
+
     // 6. Botón Vaciar Comunicados
     if (btnRestaurarBase) {
-      btnRestaurarBase.addEventListener('click', () => {
-        if (confirm('¿Deseas vaciar todos los comunicados de la cartelera?')) {
-          InasistenciasLogic.restaurarAvisosPorDefecto();
+      btnRestaurarBase.addEventListener('click', async () => {
+        const confirmado = await mostrarModalConfirmacion({
+          titulo: 'Vaciar Todos los Comunicados',
+          mensaje: '¿Deseas vaciar <strong>todos los comunicados</strong> de la cartelera?<br><br><span class="text-xs text-red-600 font-bold">Esta acción borrará todos los avisos de la Pantalla TV y dejará la pestaña Avisos en Google Sheets completamente limpia.</span>',
+          tipo: 'peligro',
+          icono: 'delete_sweep',
+          textoConfirmar: 'Sí, Vaciar Todo',
+          iconoConfirmar: 'delete_sweep',
+          textoCancelar: 'Cancelar'
+        });
+
+        if (confirmado) {
+          mostrarToast('Vaciando comunicados...', 'info');
+          await InasistenciasLogic.restaurarAvisosPorDefecto();
           cancelarEdicion();
           renderAvisosActivos();
           mostrarToast('Todos los comunicados han sido eliminados de la cartelera.', 'info');
@@ -905,7 +1120,7 @@
       });
     }
 
-    // 7. Envío del Formulario con Confirmación Explícita
+    // 7. Envío del Formulario con Confirmación Explícita mediante Modal
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -929,11 +1144,18 @@
         }
 
         const esEdicion = !!id;
-        const mensajeConfirmacion = esEdicion
-          ? `¿Confirmas que deseas guardar las modificaciones del aviso "${titulo}" en la pantalla TV y en la planilla?`
-          : `¿Confirmas que deseas publicar el aviso "${titulo}" en la pantalla TV y en la planilla?`;
+        const accionTexto = esEdicion ? 'guardar las modificaciones del' : 'publicar el';
+        const confirmado = await mostrarModalConfirmacion({
+          titulo: esEdicion ? 'Guardar Cambios del Aviso' : 'Publicar Nuevo Aviso',
+          mensaje: `¿Confirmas que deseas ${accionTexto} aviso <strong>"${titulo}"</strong> en la Pantalla TV y en la planilla Google Sheets?`,
+          tipo: 'info',
+          icono: esEdicion ? 'save' : 'send',
+          textoConfirmar: esEdicion ? 'Guardar y Publicar' : 'Publicar Aviso',
+          iconoConfirmar: esEdicion ? 'save' : 'send',
+          textoCancelar: 'Revisar datos'
+        });
 
-        if (!window.confirm(mensajeConfirmacion)) {
+        if (!confirmado) {
           return;
         }
 
@@ -943,7 +1165,8 @@
           qrDataUrl = await generarQRDataURL(urlIngresada);
         }
 
-        InasistenciasLogic.guardarAviso({
+        mostrarToast('Guardando y sincronizando con Google Sheets...', 'info');
+        await InasistenciasLogic.guardarAviso({
           id,
           titulo,
           mensaje,
@@ -957,11 +1180,16 @@
         renderAvisosActivos();
 
         const textoExito = esEdicion
-          ? '¡Aviso modificado y sincronizado con éxito!'
-          : '¡Aviso publicado con éxito en la Pantalla TV y en la planilla!';
+          ? `El aviso <strong>"${titulo}"</strong> ha sido modificado y sincronizado correctamente con la Pantalla TV y la planilla Google Sheets.`
+          : `El aviso <strong>"${titulo}"</strong> fue publicado con éxito en la Pantalla TV y sincronizado en la planilla Google Sheets.`;
 
-        mostrarToast(textoExito, 'success');
-        window.alert(textoExito);
+        mostrarToast(esEdicion ? 'Aviso modificado con éxito.' : 'Aviso publicado con éxito.', 'success');
+        await mostrarModalAlerta({
+          titulo: esEdicion ? '¡Aviso Modificado!' : '¡Aviso Publicado con Éxito!',
+          mensaje: textoExito,
+          tipo: 'exito',
+          icono: 'verified'
+        });
       });
     }
 
