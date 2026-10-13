@@ -343,6 +343,43 @@ window.InasistenciasLogic = (function () {
     return lista.find(a => a.id === id) || null;
   }
 
+  // Sincroniza avisos con el backend en Vercel (/api/avisos)
+  async function sincronizarAvisosConServidor() {
+    try {
+      const res = await fetch('/api/avisos');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.avisos)) {
+          const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
+          const nuevoStr = JSON.stringify(data.avisos);
+          const huboCambio = anteriorStr !== nuevoStr;
+          localStorage.setItem(STORAGE_AVISOS, nuevoStr);
+          return { ok: true, avisos: data.avisos, cambio: huboCambio, fuente: data.fuente };
+        }
+      }
+    } catch (e) {
+      // Sin conexión o corriendo bajo protocolo file://
+    }
+    return { ok: false, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local' };
+  }
+
+  // Persiste la lista completa de avisos en el backend (/api/avisos)
+  async function guardarAvisosEnServidor(lista) {
+    try {
+      const res = await fetch('/api/avisos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lista)
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Advertencia al enviar avisos a /api/avisos:', e);
+    }
+    return { ok: false, error: 'sin_conexion' };
+  }
+
   function guardarAviso(aviso) {
     const lista = obtenerAvisosGuardados();
     const prioridadNormalizada = normalizarCategoria(aviso.prioridad);
@@ -362,6 +399,7 @@ window.InasistenciasLogic = (function () {
           activo: aviso.activo !== undefined ? aviso.activo : lista[index].activo
         };
         localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
+        guardarAvisosEnServidor(lista);
         return lista[index];
       }
     }
@@ -380,6 +418,7 @@ window.InasistenciasLogic = (function () {
     };
     lista.unshift(nuevo);
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
+    guardarAvisosEnServidor(lista);
     return nuevo;
   }
 
@@ -389,6 +428,7 @@ window.InasistenciasLogic = (function () {
     if (aviso) {
       aviso.activo = aviso.activo === false ? true : false;
       localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
+      guardarAvisosEnServidor(lista);
     }
     return aviso;
   }
@@ -397,10 +437,12 @@ window.InasistenciasLogic = (function () {
     let lista = obtenerAvisosGuardados();
     lista = lista.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
+    guardarAvisosEnServidor(lista);
   }
 
   function restaurarAvisosPorDefecto() {
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(AVISOS_POR_DEFECTO));
+    guardarAvisosEnServidor(AVISOS_POR_DEFECTO);
     return JSON.parse(JSON.stringify(AVISOS_POR_DEFECTO));
   }
 
@@ -429,6 +471,7 @@ window.InasistenciasLogic = (function () {
         fechaCreacion: a.fechaCreacion || new Date().toISOString()
       }));
       localStorage.setItem(STORAGE_AVISOS, JSON.stringify(sanitizados));
+      guardarAvisosEnServidor(sanitizados);
       return sanitizados;
     } catch (err) {
       throw err;
@@ -449,6 +492,8 @@ window.InasistenciasLogic = (function () {
     clasificarAvisoTexto,
     obtenerAvisosGuardados,
     obtenerAvisoPorId,
+    sincronizarAvisosConServidor,
+    guardarAvisosEnServidor,
     guardarAviso,
     conmutarEstadoAviso,
     eliminarAviso,

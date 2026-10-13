@@ -12,6 +12,7 @@
 (function () {
   let datosCargados = { docentes: [] };
   const INTERVALO_SYNC_SHEETS_MS = 25 * 1000; // Revisar Google Sheets cada 25 segundos
+  const INTERVALO_SYNC_AVISOS_MS = 20 * 1000; // Revisar avisos en la nube cada 20 segundos
 
   const CACHE_KEY_DOCENTES = 'isbo_docentes_cache';
 
@@ -50,8 +51,20 @@
     const ausentesHoy = InasistenciasLogic.filtrarInasistenciasDeHoy(datosCargados.docentes, new Date());
     UI.renderDocentesDeHoy('lista-docentes', ausentesHoy, new Date());
 
-    // 2. Renderizar avisos institucionales (desde el formulario / LocalStorage)
+    // 2. Renderizar avisos institucionales (desde el formulario / LocalStorage / Cloud)
     UI.renderAvisosConMarquee('contenedor-avisos');
+  }
+
+  // Sincroniza avisos institucionales con el backend en Vercel KV
+  async function sincronizarAvisosServidor(forzarRender = false) {
+    try {
+      const res = await InasistenciasLogic.sincronizarAvisosConServidor();
+      if ((res && res.cambio) || forzarRender) {
+        UI.renderAvisosConMarquee('contenedor-avisos');
+      }
+    } catch (e) {
+      console.warn('Advertencia al sincronizar avisos en servidor (usando local):', e);
+    }
   }
 
   // Consulta y sincroniza la planilla de Google Sheets
@@ -96,11 +109,15 @@
     // 4. Carga inmediata desde caché para visualización instantánea sin parpadeo
     cargarDesdeCache();
 
-    // 5. Carga y sincronización inicial con Google Sheets
+    // 5. Carga y sincronización inicial de avisos con el backend
+    await sincronizarAvisosServidor(true);
+
+    // 6. Carga y sincronización inicial con Google Sheets
     await sincronizarConGoogleSheets();
 
-    // 6. Verificación frecuente cada 25 segundos para reflejar ingresos manuales de los funcionarios
+    // 7. Verificación frecuente: cada 25s Sheets, cada 20s Avisos en la nube
     setInterval(sincronizarConGoogleSheets, INTERVALO_SYNC_SHEETS_MS);
+    setInterval(() => sincronizarAvisosServidor(false), INTERVALO_SYNC_AVISOS_MS);
   }
 
   document.addEventListener('DOMContentLoaded', iniciar);
