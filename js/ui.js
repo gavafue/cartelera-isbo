@@ -1,47 +1,42 @@
 /**
  * ============================================================================
  * Módulo: ui.js
- * Responsabilidad: Renderizado visual de la Pantalla TV:
- *                   - Layout adaptativo dinámico en 3 columnas:
- *                     Hoy | Mañana | Avisos Bedelía (feed/cápsula).
- *                   - Inasistencias de hoy y mañana con normalización de grupos
- *                     y cálculo de estado temporal contextual.
- *                   - Cartelera con marquesina vertical y 6 categorías
- *                     oficiales sin etiquetas genéricas.
- *                   - Códigos QR nítidos y escaneables en alta resolución.
+ * Responsabilidad: Renderizado visual de la Pantalla TV y multidispositivo:
+ *                   - Visualización excelente en TV 32" de pasillo, desktop,
+ *                     tablets y teléfonos móviles sin desbordes ni roturas.
+ *                   - Nombre completo de los docentes SIEMPRE visible sin '...'.
+ *                   - Disposición en 2 niveles de tarjeta (Docente/Estado arriba,
+ *                     chips de grupos abajo).
+ *                   - Layout adaptativo dinámico en 3 columnas en TV/Desktop
+ *                     y apilado vertical fluido con scroll nativo en mobile/tablet.
+ *                   - Cartelera con marquesina vertical y 6 categorías oficiales.
  * ============================================================================
  */
 
 window.UI = (function () {
+  let ultimosConteos = { nHoy: 0, nManana: 0, nAvisos: 0 };
+
   // Renderiza las insignias de grupos normalizados (ej: 2° MK, 1° MM, TODOS LOS GRUPOS)
   function renderGrupos(grupoTexto) {
     const grupos = InasistenciasLogic.extraerGrupos(grupoTexto);
     if (grupos.length === 0) {
-      return '<span class="text-slate-400 text-[11px] font-semibold">Sin grupo</span>';
+      return '<span class="text-slate-400 text-[10px] sm:text-[11px] font-semibold">Sin grupo asignado</span>';
     }
 
     if (grupos.length === 1 && grupos[0] === 'TODOS LOS GRUPOS') {
       return `
-        <span class="inline-flex items-center gap-1 bg-slate-900 text-white font-black text-[10px] sm:text-xs px-2.5 py-1 rounded-lg shadow-xs border border-slate-700">
+        <span class="inline-flex items-center gap-1 bg-slate-900 text-white font-black text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-700 shadow-xs">
           <span class="material-symbols-outlined text-xs text-[#F8E124]">groups</span>
           <span>TODOS LOS GRUPOS</span>
         </span>
       `;
     }
 
-    if (grupos.length === 1) {
-      return `
-        <span class="inline-block bg-[#00489A] text-white font-extrabold text-[11px] sm:text-xs px-2.5 py-1 rounded-lg shadow-xs border border-sky-400/30 truncate max-w-full">
-          ${grupos[0]}
-        </span>
-      `;
-    }
-
     const paleta = ['bg-[#00489A]', 'bg-emerald-800', 'bg-indigo-700', 'bg-purple-800', 'bg-teal-700', 'bg-amber-800'];
     return `
-      <div class="flex flex-wrap gap-1">
+      <div class="flex flex-wrap gap-1 sm:gap-1.5">
         ${grupos.map((g, i) => `
-          <span class="${paleta[i % paleta.length]} text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-md shadow-xs border border-white/20">
+          <span class="${paleta[i % paleta.length]} text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-md shadow-xs border border-white/20 whitespace-nowrap">
             ${g}
           </span>
         `).join('')}
@@ -63,15 +58,15 @@ window.UI = (function () {
       const descVacio = opciones.descVacio || 'Todo el cuerpo docente asiste con normalidad.';
       contenedor.className = 'h-full flex items-center justify-center p-4';
       contenedor.innerHTML = `
-        <div class="w-full h-full min-h-[300px] flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-white to-slate-50/80 rounded-2xl border-2 border-dashed border-emerald-300 shadow-inner">
-          <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-sm border border-emerald-200">
-            <span class="material-symbols-outlined text-4xl">verified</span>
+        <div class="w-full h-full min-h-[260px] flex flex-col items-center justify-center text-center p-5 bg-gradient-to-b from-white to-slate-50/80 rounded-2xl border-2 border-dashed border-emerald-300 shadow-inner">
+          <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2.5 shadow-sm border border-emerald-200">
+            <span class="material-symbols-outlined text-3xl sm:text-4xl">verified</span>
           </div>
-          <span class="px-3 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider mb-2 border border-emerald-300">
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider mb-1.5 border border-emerald-300">
             Jornada Normal
           </span>
-          <h3 class="text-xl font-black text-slate-800 tracking-tight">${tituloVacio}</h3>
-          <p class="text-xs text-slate-500 font-medium max-w-sm mt-1.5 leading-relaxed">
+          <h3 class="text-base sm:text-lg lg:text-xl font-black text-slate-800 tracking-tight">${tituloVacio}</h3>
+          <p class="text-xs text-slate-500 font-medium max-w-sm mt-1 leading-relaxed">
             ${descVacio}
           </p>
         </div>
@@ -80,6 +75,9 @@ window.UI = (function () {
     }
 
     // Caso 2: 1 o más docentes ausentes
+    // Disposición en 2 niveles:
+    // Nivel 1: Avatar + Nombre Completo (sin truncate, break-words) + Estado
+    // Nivel 2: Chips de grupos afectados con divisor sutil
     const hoverBorder = opciones.hoverBorder || 'hover:border-sky-400';
     const tarjetasHtml = docentes.map(d => {
       const iniciales = InasistenciasLogic.obtenerIniciales(d.nombre);
@@ -87,34 +85,44 @@ window.UI = (function () {
       const estado = InasistenciasLogic.calcularEstado(d, fecha);
 
       return `
-        <div class="bg-white rounded-xl p-2.5 sm:p-3.5 border-2 border-slate-200/90 shadow-sm flex items-center justify-between ${hoverBorder} transition-colors">
-          <div class="flex items-center gap-2.5 sm:gap-3 w-5/12 min-w-0">
-            <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl ${color} text-white flex items-center justify-center font-black text-xs sm:text-sm shadow shrink-0">
-              ${iniciales}
+        <div class="bg-white rounded-xl p-2.5 sm:p-3 lg:p-3.5 border-2 border-slate-200/90 shadow-xs flex flex-col gap-2 ${hoverBorder} transition-colors">
+          <!-- Nivel 1: Docente y Estado -->
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+              <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl ${color} text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0">
+                ${iniciales}
+              </div>
+              <div class="min-w-0 flex-1">
+                <h3 class="text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 leading-snug break-words">
+                  ${d.nombre}
+                </h3>
+                <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Docente</span>
+              </div>
             </div>
-            <div class="min-w-0 flex-1">
-              <h3 class="text-xs sm:text-sm md:text-base font-extrabold text-slate-900 leading-tight truncate">${d.nombre}</h3>
-              <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Docente</span>
+            <div class="shrink-0 text-right">
+              <span class="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border shadow-xs inline-block whitespace-nowrap ${estado.clase}">
+                ${estado.texto}
+              </span>
             </div>
           </div>
-          <div class="w-4/12 px-1.5 min-w-0">
-            ${renderGrupos(d.grupo)}
-          </div>
-          <div class="w-3/12 text-right">
-            <span class="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-1 rounded-lg border shadow-xs inline-block ${estado.clase}">
-              ${estado.texto}
+
+          <!-- Nivel 2: Grupos Afectados -->
+          <div class="pt-1.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[13px] text-slate-400">groups</span> Grupos:
             </span>
+            ${renderGrupos(d.grupo)}
           </div>
         </div>
       `;
     }).join('');
 
-    // Si hay 4 o más docentes, activar marquesina continua para visualización completa
+    // Si hay 4 o más docentes en TV/Desktop, activar marquesina continua para visualización completa
     if (docentes.length >= 4) {
-      contenedor.className = 'animate-marquee-v space-y-3';
+      contenedor.className = 'animate-marquee-v space-y-2.5';
       contenedor.innerHTML = tarjetasHtml + `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2"></div>` + tarjetasHtml;
     } else {
-      contenedor.className = 'space-y-3';
+      contenedor.className = 'space-y-2.5';
       contenedor.innerHTML = tarjetasHtml;
     }
   }
@@ -192,7 +200,7 @@ window.UI = (function () {
       const imgQR = tieneQR ? resolverImagenQR(a) : '';
 
       listaTarjetas.push(`
-        <div class="${config.cardBg} rounded-xl p-3 sm:p-4 shadow-sm relative overflow-hidden flex flex-col justify-between border border-white/20">
+        <div class="${config.cardBg} rounded-xl p-3 sm:p-3.5 shadow-xs relative overflow-hidden flex flex-col justify-between border border-white/20">
           <div>
             <div class="flex items-center justify-between gap-2 mb-1.5">
               <span class="inline-flex items-center gap-1 ${config.colorBadge} text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
@@ -204,7 +212,7 @@ window.UI = (function () {
                 </span>
               ` : ''}
             </div>
-            <h3 class="text-xs sm:text-sm md:text-base font-extrabold leading-snug ${config.tituloCol}">${a.titulo}</h3>
+            <h3 class="text-xs sm:text-sm lg:text-base font-extrabold leading-snug ${config.tituloCol}">${a.titulo}</h3>
             <p class="text-xs ${config.mensajeCol} font-medium mt-1 leading-relaxed">${a.mensaje}</p>
           </div>
 
@@ -235,7 +243,7 @@ window.UI = (function () {
 
     // Caso: No hay avisos en cartelera
     if (listaTarjetas.length === 0) {
-      contenedor.className = 'space-y-3';
+      contenedor.className = 'space-y-2.5';
       contenedor.innerHTML = `
         <div class="bg-white rounded-xl p-4 text-center border-2 border-dashed border-slate-200">
           <span class="material-symbols-outlined text-slate-400 text-3xl mb-1">campaign</span>
@@ -249,16 +257,18 @@ window.UI = (function () {
     // Si hay 3 o más avisos, activar marquesina vertical continua
     const totalHtml = listaTarjetas.join('');
     if (listaTarjetas.length >= 3) {
-      contenedor.className = 'animate-marquee-v space-y-3';
+      contenedor.className = 'animate-marquee-v space-y-2.5';
       contenedor.innerHTML = totalHtml + `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2"></div>` + totalHtml;
     } else {
-      contenedor.className = 'space-y-3';
+      contenedor.className = 'space-y-2.5';
       contenedor.innerHTML = totalHtml;
     }
   }
 
-  // Ajusta las proporciones y visibilidad dinámica de las 3 columnas
+  // Ajusta las proporciones y visibilidad dinámica de las 3 columnas respetando pantallas
   function ajustarLayout(nHoy, nManana, nAvisos) {
+    ultimosConteos = { nHoy, nManana, nAvisos };
+
     const colHoy = document.getElementById('columna-hoy');
     const colManana = document.getElementById('columna-manana');
     const colAvisos = document.getElementById('columna-avisos');
@@ -289,7 +299,28 @@ window.UI = (function () {
       }
     }
 
-    // 3. Determinación de proporciones:
+    // 3. Comportamiento Responsive (Móvil / Tablet < 1024px vs TV / Desktop >= 1024px)
+    const esPantallaGrande = window.innerWidth >= 1024;
+    if (!esPantallaGrande) {
+      colHoy.style.flex = 'none';
+      colHoy.style.width = '100%';
+      if (colManana && tieneManana) {
+        colManana.style.flex = 'none';
+        colManana.style.width = '100%';
+      }
+      if (colAvisos && tieneAvisos) {
+        colAvisos.style.flex = 'none';
+        colAvisos.style.width = '100%';
+      }
+      return;
+    }
+
+    // En pantallas grandes (TV 32", TV 1080p, escritorio): limpiar width inline y aplicar proporciones flex
+    colHoy.style.width = '';
+    if (colManana) colManana.style.width = '';
+    if (colAvisos) colAvisos.style.width = '';
+
+    // 4. Determinación de proporciones en TV/Desktop:
     // "Si mañana suele tener casi la misma cantidad de inasistencias que hoy:
     //  38% (Hoy) | 38% (Mañana) | 24% (Avisos Bedelía comprimidos en formato cápsula o feed).
     //  Si casi no hay avisos de mañana (1 o ninguno la mayoría de los días):
@@ -312,12 +343,12 @@ window.UI = (function () {
         colAvisos.style.flex = '25 25 0%';
       }
     } else if (!tieneManana && tieneAvisos) {
-      // Si mañana no hay aviso, esa columna debe estar oculta y Hoy ocupa su lugar:
+      // Si mañana no hay inasistencias, esa columna se oculta y Hoy ocupa su lugar:
       // 75% Hoy | 25% Avisos
       colHoy.style.flex = '75 75 0%';
       colAvisos.style.flex = '25 25 0%';
     } else if (tieneManana && !tieneAvisos) {
-      // Si no hay avisos, avisos oculta y Hoy ocupa el espacio libre restante
+      // Si no hay avisos, avisos se oculta y Hoy ocupa el espacio libre restante
       if (esMananaSimilar) {
         colHoy.style.flex = '50 50 0%';
         colManana.style.flex = '50 50 0%';
@@ -329,6 +360,13 @@ window.UI = (function () {
       // Ambas ocultas (sin mañana y sin avisos): Hoy ocupa el 100%
       colHoy.style.flex = '100 100 0%';
     }
+  }
+
+  // Listener global de resize para recalcular layout al rotar pantalla o cambiar tamaño de ventana
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', () => {
+      ajustarLayout(ultimosConteos.nHoy, ultimosConteos.nManana, ultimosConteos.nAvisos);
+    });
   }
 
   // Control del Reloj en tiempo real
