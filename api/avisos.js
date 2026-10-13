@@ -146,6 +146,22 @@ async function obtenerDeGoogleSheets() {
   }
 }
 
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby7Cqt6FB1km9dH8iN6GV0eATxesGtarrsEBNPx8KzJC2J-3DhTCnYxAbKHezrZp0IDIw/exec';
+
+async function guardarEnGoogleAppsScript(avisos) {
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'sync_all', avisos })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Error al guardar en Google Apps Script desde backend:', err);
+    return false;
+  }
+}
+
 module.exports = async function handler(req, res) {
   // Configuración de CORS y cabeceras
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -161,7 +177,7 @@ module.exports = async function handler(req, res) {
       // 1. Prioridad: Pestaña Avisos de Google Sheets
       const avisosSheets = await obtenerDeGoogleSheets();
       if (avisosSheets && Array.isArray(avisosSheets) && avisosSheets.length > 0) {
-        res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=15');
+        res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=10');
         return res.status(200).json({
           ok: true,
           fuente: 'google-sheets',
@@ -185,7 +201,7 @@ module.exports = async function handler(req, res) {
       res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=20');
       return res.status(200).json({
         ok: true,
-        fuente: process.env.KV_REST_API_URL ? 'vercel-kv-vacio' : 'archivo-base',
+        fuente: 'archivo-base',
         avisos: porDefecto
       });
     } catch (err) {
@@ -219,19 +235,17 @@ module.exports = async function handler(req, res) {
         fechaCreacion: a.fechaCreacion || new Date().toISOString()
       }));
 
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-        return res.status(200).json({
-          ok: true,
-          alerta: 'KV_NO_ENLAZADO',
-          mensaje: 'Avisos recibidos pero Vercel KV aún no está conectado. Recuerda agregar la base de datos KV en Vercel.',
-          avisos: sanitizados
-        });
+      // 1. Guardar directamente en Google Sheets vía Apps Script
+      await guardarEnGoogleAppsScript(sanitizados);
+
+      // 2. Si Vercel KV estuviese enlazado, guardar en KV también
+      if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+        await guardarEnVercelKV(sanitizados);
       }
 
-      await guardarEnVercelKV(sanitizados);
       return res.status(200).json({
         ok: true,
-        fuente: 'vercel-kv',
+        fuente: 'google-sheets',
         avisos: sanitizados
       });
     } catch (err) {

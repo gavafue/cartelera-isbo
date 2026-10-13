@@ -11,9 +11,15 @@
       ]
     },
     {
-      "source": "/(css|js|logo-isbo.jpg)(.*)",
+      "source": "/(css|logo-isbo.jpg)(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=43200" }
+      ]
+    },
+    {
+      "source": "/(js)(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     }
   ],

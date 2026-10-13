@@ -132,7 +132,11 @@
           <li>Abre tu planilla de Google Sheets y en el menú superior ve a <strong>Extensiones ➔ Apps Script</strong>.</li>
           <li>Borra cualquier código que aparezca y pega el siguiente script:</li>
         </ol>
-        <pre class="p-3 bg-slate-900 text-emerald-400 rounded-lg text-[11px] font-mono overflow-x-auto select-all">function doPost(e) {
+        <pre class="p-3 bg-slate-900 text-emerald-400 rounded-lg text-[11px] font-mono overflow-x-auto select-all">function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, status: "online" })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName("Avisos") || ss.insertSheet("Avisos");
   var data = JSON.parse(e.postData.contents);
@@ -441,9 +445,9 @@
   <!-- 4. SCRIPTS MODULARIZADOS VANILLA                                          -->
   <!-- ========================================================================= -->
   <script src="js/qrcode.min.js"></script>
-  <script src="js/sheet.js"></script>
-  <script src="js/inasistencias.js"></script>
-  <script src="js/avisos-admin.js"></script>
+  <script src="js/sheet.js?v=3.1"></script>
+  <script src="js/inasistencias.js?v=3.1"></script>
+  <script src="js/avisos-admin.js?v=3.1"></script>
 
 </body>
 </html>

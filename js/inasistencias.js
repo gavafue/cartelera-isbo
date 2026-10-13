@@ -326,9 +326,10 @@ window.InasistenciasLogic = (function () {
   // Sin avisos mock por defecto (la cartelera solo muestra comunicados reales cargados)
   const AVISOS_POR_DEFECTO = [];
   const STORAGE_APPS_SCRIPT = 'isbo_apps_script_url';
+  const URL_APPS_SCRIPT_DEFAULT = 'https://script.google.com/macros/s/AKfycby7Cqt6FB1km9dH8iN6GV0eATxesGtarrsEBNPx8KzJC2J-3DhTCnYxAbKHezrZp0IDIw/exec';
 
   function obtenerUrlAppsScript() {
-    return localStorage.getItem(STORAGE_APPS_SCRIPT) || '';
+    return localStorage.getItem(STORAGE_APPS_SCRIPT) || URL_APPS_SCRIPT_DEFAULT;
   }
 
   function guardarUrlAppsScript(url) {
