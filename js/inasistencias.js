@@ -384,13 +384,37 @@ window.InasistenciasLogic = (function () {
     return lista.find(a => a.id === id) || null;
   }
 
+  // Período de gracia tras modificación local (evita que la caché desactualizada
+  // de Google Sheets GViz sobreescriba altas, bajas o modificaciones inmediatas)
+  const COOLDOWN_MODIFICACION_LOCAL_MS = 30000;
+  let timestampUltimaModificacion = 0;
+
+  function registrarModificacionLocal() {
+    timestampUltimaModificacion = Date.now();
+  }
+
+  function modificacionLocalReciente() {
+    return (Date.now() - timestampUltimaModificacion) < COOLDOWN_MODIFICACION_LOCAL_MS;
+  }
+
   // Sincroniza avisos con Google Sheets (pestaña 'Avisos') o backend
   async function sincronizarAvisosConServidor() {
+    // Si hubo una modificación local reciente (alta, baja o edición en los últimos 30s),
+    // no permitimos que la respuesta de Sheets GViz (que sufre retrasos de propagación)
+    // sobreescriba los datos locales optimistas.
+    if (modificacionLocalReciente()) {
+      return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
+    }
+
     try {
       // 1. Prioridad: Pestaña 'Avisos' de la planilla Google Sheets institucional
       if (typeof SheetAPI !== 'undefined' && typeof SheetAPI.obtenerAvisos === 'function') {
         const avisosSheet = await SheetAPI.obtenerAvisos();
         if (Array.isArray(avisosSheet)) {
+          // Re-chequear que no haya ocurrido una modificación local mientras se descargaba
+          if (modificacionLocalReciente()) {
+            return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
+          }
           const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
           const nuevoStr = JSON.stringify(avisosSheet);
           const huboCambio = anteriorStr !== nuevoStr;
@@ -404,6 +428,9 @@ window.InasistenciasLogic = (function () {
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.avisos)) {
+          if (modificacionLocalReciente()) {
+            return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
+          }
           const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
           const nuevoStr = JSON.stringify(data.avisos);
           const huboCambio = anteriorStr !== nuevoStr;
@@ -443,37 +470,46 @@ window.InasistenciasLogic = (function () {
     return Boolean(obtenerTokenSesion());
   }
 
-  // Persiste la lista completa de avisos en Google Sheets (Apps Script) y en el backend
+  // Persiste la lista completa de avisos en Google Sheets (Apps Script) y en el backend en paralelo
   async function guardarAvisosEnServidor(lista) {
     if (!verificarSesionAdmin()) {
       console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
       return { ok: false, error: 'no_autorizado' };
     }
 
-    // 1. Guardar en Google Sheets mediante Apps Script si está configurada la URL
-    await guardarAvisosEnGoogleSheets(lista);
+    const token = obtenerTokenSesion();
 
-    // 2. Guardar en /api/avisos si está disponible
-    try {
-      const token = obtenerTokenSesion();
-      const res = await fetch('/api/avisos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-isbo-token': token
-        },
-        body: JSON.stringify(lista)
-      });
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (e) {
-      console.warn('Advertencia al enviar avisos a /api/avisos:', e);
-    }
-    return { ok: true, local: true };
+    const resultados = await Promise.allSettled([
+      // 1. Guardar en Google Sheets mediante Apps Script si está configurada la URL
+      guardarAvisosEnGoogleSheets(lista),
+      // 2. Guardar en /api/avisos si está disponible
+      (async () => {
+        try {
+          const res = await fetch('/api/avisos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-isbo-token': token
+            },
+            body: JSON.stringify(lista)
+          });
+          if (res.ok) {
+            return await res.json();
+          }
+        } catch (e) {
+          console.warn('Advertencia al enviar avisos a /api/avisos:', e);
+        }
+        return { ok: true, local: true };
+      })()
+    ]);
+
+    const sheetsOk = resultados[0].status === 'fulfilled' && Boolean(resultados[0].value?.ok);
+    const apiOk = resultados[1].status === 'fulfilled' && (resultados[1].value?.ok !== false);
+    return { ok: sheetsOk || apiOk, sheetsOk, apiOk };
   }
 
-  async function guardarAviso(aviso) {
+  // Guardado optimista síncrono local (0 ms de demora, actualización instantánea)
+  function guardarAvisoLocal(aviso) {
     if (!verificarSesionAdmin()) {
       console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
       return null;
@@ -481,6 +517,7 @@ window.InasistenciasLogic = (function () {
 
     const lista = obtenerAvisosGuardados();
     const prioridadNormalizada = normalizarCategoria(aviso.prioridad);
+    let avisoModificado = null;
 
     if (aviso.id) {
       // Edición de aviso existente
@@ -496,31 +533,34 @@ window.InasistenciasLogic = (function () {
           qrImagen: aviso.qrImagen !== undefined ? aviso.qrImagen : (lista[index].qrImagen || ''),
           activo: aviso.activo !== undefined ? aviso.activo : lista[index].activo
         };
-        localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
-        await guardarAvisosEnServidor(lista);
-        return lista[index];
+        avisoModificado = lista[index];
       }
     }
 
-    // Creación de nuevo aviso
-    const nuevo = {
-      id: 'aviso-' + Date.now(),
-      titulo: aviso.titulo || 'Aviso Institucional',
-      prioridad: prioridadNormalizada,
-      mensaje: aviso.mensaje || '',
-      tieneQr: !!aviso.tieneQr,
-      qrUrl: aviso.qrUrl || '',
-      qrImagen: aviso.qrImagen || '',
-      activo: true,
-      fechaCreacion: new Date().toISOString()
-    };
-    lista.unshift(nuevo);
+    if (!avisoModificado) {
+      // Creación de nuevo aviso
+      const nuevo = {
+        id: 'aviso-' + Date.now(),
+        titulo: aviso.titulo || 'Aviso Institucional',
+        prioridad: prioridadNormalizada,
+        mensaje: aviso.mensaje || '',
+        tieneQr: !!aviso.tieneQr,
+        qrUrl: aviso.qrUrl || '',
+        qrImagen: aviso.qrImagen || '',
+        activo: true,
+        fechaCreacion: new Date().toISOString()
+      };
+      lista.unshift(nuevo);
+      avisoModificado = nuevo;
+    }
+
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
-    await guardarAvisosEnServidor(lista);
-    return nuevo;
+    registrarModificacionLocal();
+    return { aviso: avisoModificado, lista };
   }
 
-  async function conmutarEstadoAviso(id) {
+  // Conmutación optimista síncrona local de estado activo/pausado
+  function conmutarEstadoAvisoLocal(id) {
     if (!verificarSesionAdmin()) {
       console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
       return null;
@@ -531,12 +571,13 @@ window.InasistenciasLogic = (function () {
     if (aviso) {
       aviso.activo = aviso.activo === false ? true : false;
       localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
-      await guardarAvisosEnServidor(lista);
+      registrarModificacionLocal();
     }
     return aviso;
   }
 
-  async function eliminarAviso(id) {
+  // Eliminación optimista síncrona local (0 ms de demora)
+  function eliminarAvisoLocal(id) {
     if (!verificarSesionAdmin()) {
       console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
       return null;
@@ -545,19 +586,49 @@ window.InasistenciasLogic = (function () {
     let lista = obtenerAvisosGuardados();
     lista = lista.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
-    await guardarAvisosEnServidor(lista);
+    registrarModificacionLocal();
     return lista;
   }
 
-  async function restaurarAvisosPorDefecto() {
+  // Vaciado optimista síncrono local
+  function restaurarAvisosPorDefectoLocal() {
     if (!verificarSesionAdmin()) {
       console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
       return [];
     }
 
-    localStorage.setItem(STORAGE_AVISOS, JSON.stringify(AVISOS_POR_DEFECTO));
-    await guardarAvisosEnServidor(AVISOS_POR_DEFECTO);
-    return JSON.parse(JSON.stringify(AVISOS_POR_DEFECTO));
+    localStorage.setItem(STORAGE_AVISOS, JSON.stringify([]));
+    registrarModificacionLocal();
+    return [];
+  }
+
+  // Versiones asíncronas con guardado remoto (compatibilidad)
+  async function guardarAviso(aviso) {
+    const res = guardarAvisoLocal(aviso);
+    if (!res) return null;
+    await guardarAvisosEnServidor(res.lista);
+    return res.aviso;
+  }
+
+  async function conmutarEstadoAviso(id) {
+    const aviso = conmutarEstadoAvisoLocal(id);
+    if (!aviso) return null;
+    const lista = obtenerAvisosGuardados();
+    await guardarAvisosEnServidor(lista);
+    return aviso;
+  }
+
+  async function eliminarAviso(id) {
+    const lista = eliminarAvisoLocal(id);
+    if (!lista) return null;
+    await guardarAvisosEnServidor(lista);
+    return lista;
+  }
+
+  async function restaurarAvisosPorDefecto() {
+    const lista = restaurarAvisosPorDefectoLocal();
+    await guardarAvisosEnServidor(lista);
+    return lista;
   }
 
   // Exporta los avisos actuales como cadena JSON para respaldo institucional
@@ -585,6 +656,7 @@ window.InasistenciasLogic = (function () {
         fechaCreacion: a.fechaCreacion || new Date().toISOString()
       }));
       localStorage.setItem(STORAGE_AVISOS, JSON.stringify(sanitizados));
+      registrarModificacionLocal();
       guardarAvisosEnServidor(sanitizados);
       return sanitizados;
     } catch (err) {
@@ -611,6 +683,12 @@ window.InasistenciasLogic = (function () {
     obtenerUrlAppsScript,
     guardarUrlAppsScript,
     guardarAvisosEnGoogleSheets,
+    guardarAvisoLocal,
+    conmutarEstadoAvisoLocal,
+    eliminarAvisoLocal,
+    restaurarAvisosPorDefectoLocal,
+    registrarModificacionLocal,
+    modificacionLocalReciente,
     guardarAviso,
     conmutarEstadoAviso,
     eliminarAviso,

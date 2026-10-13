@@ -395,7 +395,7 @@ window.SheetAPI = (function () {
         if (resuelto) return;
         resuelto = true;
         try {
-          const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0${sheetParam}`;
+          const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0${sheetParam}&_t=${Date.now()}`;
           const res = await fetch(url);
           const texto = await res.text();
           const json = JSON.parse(texto.replace(/^[\s\S]*setResponse\(/, '').replace(/\);?\s*$/, ''));
@@ -414,7 +414,7 @@ window.SheetAPI = (function () {
         resolve(respuesta?.table?.rows || []);
       };
 
-      script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${nombreCallback}&headers=0${sheetParam}`;
+      script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${nombreCallback}&headers=0${sheetParam}&_t=${Date.now()}`;
       script.onerror = () => {
         script.remove();
         delete window[nombreCallback];
