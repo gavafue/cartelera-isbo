@@ -5,8 +5,7 @@
 
 Sistema de señalética e información educativa digital de alto impacto visual y tolerancia a fallos, desarrollado con **HTML5, Tailwind CSS y JavaScript Vanilla Modular**, sin dependencias de servidor ni frameworks pesados. Diseñado y elaborado a medida para la comunidad educativa del **Instituto Superior Brazo Oriental (ISBO - DGETP / UTU)**.
 
-Conecta en tiempo real con la planilla oficial de Google Sheets:  
-🔗 [Planilla Oficial de Inasistencias ISBO](https://docs.google.com/spreadsheets/d/1t83h87_A01gSG518nU7QtpCGMNHR7kRbB900l-18TIk/edit?usp=sharing)
+Sincroniza y procesa en tiempo real las inasistencias docentes a partir de la planilla interna institucional de Google Sheets gestionada por el personal de Bedelía y Adscripción.
 
 ---
 
