@@ -183,72 +183,54 @@
               <!-- 1. Urgente (Rojo) -->
               <label class="flex items-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition-all has-[:checked]:border-red-500 has-[:checked]:bg-red-50/70">
                 <input type="radio" name="prioridad" value="urgente" class="text-red-600 accent-red-600 w-4 h-4 shrink-0">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-bold text-red-800">🔴 Urgente</span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-red-200 text-red-900 uppercase">Rojo</span>
-                  </div>
-                  <span class="text-[10px] text-slate-500 block truncate">Suspensiones y alertas</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="font-bold text-red-800">🔴 Urgente</span>
+                  <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-200 text-red-900 uppercase">Rojo</span>
                 </div>
               </label>
 
               <!-- 2. Atención (Naranja) -->
               <label class="flex items-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition-all has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/70">
                 <input type="radio" name="prioridad" value="atencion" checked class="text-amber-500 accent-amber-500 w-4 h-4 shrink-0">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-bold text-amber-800">🟠 Atención</span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 uppercase">Naranja</span>
-                  </div>
-                  <span class="text-[10px] text-slate-500 block truncate">ATD, salas y horarios</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="font-bold text-amber-800">🟠 Atención</span>
+                  <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 uppercase">Naranja</span>
                 </div>
               </label>
 
               <!-- 3. Avisos (Púrpura) -->
               <label class="flex items-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition-all has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50/70">
                 <input type="radio" name="prioridad" value="avisos" class="text-purple-600 accent-purple-600 w-4 h-4 shrink-0">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-bold text-purple-800">🟣 Avisos</span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-purple-200 text-purple-900 uppercase">Púrpura</span>
-                  </div>
-                  <span class="text-[10px] text-slate-500 block truncate">Dirección y adscripción</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="font-bold text-purple-800">🟣 Avisos</span>
+                  <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-purple-200 text-purple-900 uppercase">Púrpura</span>
                 </div>
               </label>
 
               <!-- 4. Información (Azul) -->
               <label class="flex items-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition-all has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/70">
                 <input type="radio" name="prioridad" value="informacion" class="text-blue-600 accent-blue-600 w-4 h-4 shrink-0">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-bold text-blue-800">🔵 Información</span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-200 text-blue-900 uppercase">Azul</span>
-                  </div>
-                  <span class="text-[10px] text-slate-500 block truncate">General y biblioteca</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="font-bold text-blue-800">🔵 Información</span>
+                  <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-200 text-blue-900 uppercase">Azul</span>
                 </div>
               </label>
 
               <!-- 5. Trámites (Verde) -->
               <label class="flex items-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/70">
                 <input type="radio" name="prioridad" value="tramites" class="text-emerald-600 accent-emerald-600 w-4 h-4 shrink-0">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-bold text-emerald-800">🟢 Trámites</span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-900 uppercase">Verde</span>
-                  </div>
-                  <span class="text-[10px] text-slate-500 block truncate">Boletos y constancias</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="font-bold text-emerald-800">🟢 Trámites</span>
+                  <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-900 uppercase">Verde</span>
                 </div>
               </label>
 
               <!-- 6. Exámenes (Amarillo) -->
               <label class="flex items-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-slate-50 transition-all has-[:checked]:border-amber-400 has-[:checked]:bg-amber-50/80">
                 <input type="radio" name="prioridad" value="examenes" class="text-amber-500 accent-amber-500 w-4 h-4 shrink-0">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-bold text-amber-900">🟡 Exámenes</span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-200 text-amber-950 uppercase">Amarillo</span>
-                  </div>
-                  <span class="text-[10px] text-slate-500 block truncate">Mesas y tribunales</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="font-bold text-amber-900">🟡 Exámenes</span>
+                  <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-200 text-amber-950 uppercase">Amarillo</span>
                 </div>
               </label>
 
