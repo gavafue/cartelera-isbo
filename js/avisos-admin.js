@@ -775,20 +775,23 @@
             </div>
 
             <!-- Botones de Acción -->
-            <div class="flex items-center gap-1 shrink-0">
+            <div class="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
               <!-- Botón Editar -->
-              <button type="button" class="btn-editar-aviso p-1.5 rounded-lg text-sky-700 hover:bg-sky-100 transition-colors cursor-pointer" data-id="${a.id}" title="Editar contenido o código QR">
-                <span class="material-symbols-outlined text-[19px]">edit</span>
+              <button type="button" class="btn-editar-aviso inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-colors cursor-pointer" data-id="${a.id}" title="Editar contenido o código QR">
+                <span class="material-symbols-outlined text-sm pointer-events-none">edit</span>
+                <span class="pointer-events-none">Editar</span>
               </button>
 
-              <!-- Botón Pausar / Activar -->
-              <button type="button" class="btn-toggle-aviso p-1.5 rounded-lg ${estaActivo ? 'text-amber-700 hover:bg-amber-100' : 'text-emerald-700 hover:bg-emerald-100'} transition-colors cursor-pointer" data-id="${a.id}" title="${estaActivo ? 'Pausar (ocultar de la TV)' : 'Activar (mostrar en la TV)'}">
-                <span class="material-symbols-outlined text-[19px]">${estaActivo ? 'visibility_off' : 'visibility'}</span>
+              <!-- Botón Pausar / Activar (Ocultar de la TV) -->
+              <button type="button" class="btn-toggle-aviso inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${estaActivo ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300'}" data-id="${a.id}" title="${estaActivo ? 'Ocultar este aviso de la Pantalla TV' : 'Mostrar este aviso en la Pantalla TV'}">
+                <span class="material-symbols-outlined text-sm pointer-events-none">${estaActivo ? 'visibility_off' : 'visibility'}</span>
+                <span class="pointer-events-none">${estaActivo ? 'Ocultar' : 'Mostrar'}</span>
               </button>
 
               <!-- Botón Eliminar -->
-              <button type="button" class="btn-eliminar-aviso p-1.5 rounded-lg text-red-600 hover:bg-red-100 transition-colors cursor-pointer" data-id="${a.id}" title="Eliminar aviso definitivamente">
-                <span class="material-symbols-outlined text-[19px]">delete</span>
+              <button type="button" class="btn-eliminar-aviso inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-colors cursor-pointer" data-id="${a.id}" title="Eliminar aviso definitivamente">
+                <span class="material-symbols-outlined text-sm pointer-events-none">delete</span>
+                <span class="pointer-events-none">Eliminar</span>
               </button>
             </div>
           </div>
@@ -818,35 +821,52 @@
 
     // Eventos para Botones Editar
     listaAvisosActivos.querySelectorAll('.btn-editar-aviso').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const id = btn.getAttribute('data-id');
-        iniciarEdicion(id);
+        if (id) iniciarEdicion(id);
       });
     });
 
-    // Eventos para Botones Pausar / Activar
+    // Eventos para Botones Pausar / Activar (Ocultar / Mostrar de TV) - Reacción inmediata (0 ms)
     listaAvisosActivos.querySelectorAll('.btn-toggle-aviso').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const id = btn.getAttribute('data-id');
+        if (!id) return;
+
+        btn.disabled = true;
         const aviso = InasistenciasLogic.conmutarEstadoAvisoLocal(id);
         renderAvisosActivos();
+        actualizarVistaPrevia();
+
         if (aviso) {
-          const estado = aviso.activo !== false ? 'activado en Pantalla TV' : 'pausado y oculto';
-          mostrarToast(`Aviso "${aviso.titulo}" ${estado}. Sincronizando...`, 'info');
+          const estaActivo = aviso.activo !== false;
+          const estado = estaActivo ? 'activado y visible en Pantalla TV' : 'pausado (oculto de la Pantalla TV)';
+          mostrarToast(`Aviso "${aviso.titulo}" ${estado}.`, 'info');
+
           const listaActual = InasistenciasLogic.obtenerAvisosGuardados();
           InasistenciasLogic.guardarAvisosEnServidor(listaActual).then(() => {
-            mostrarToast('Estado sincronizado con Google Sheets.', 'success');
+            mostrarToast('Sincronizado con Google Sheets.', 'success');
           }).catch(console.warn);
         }
       });
     });
 
-    // Eventos para Botones Eliminar
+    // Eventos para Botones Eliminar (Elimina estrictamente el aviso correspondiente al ID)
     listaAvisosActivos.querySelectorAll('.btn-eliminar-aviso').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const id = btn.getAttribute('data-id');
+        if (!id) return;
+
         const aviso = InasistenciasLogic.obtenerAvisoPorId(id);
         const titulo = aviso ? `"${aviso.titulo}"` : 'este aviso';
+
+        btn.disabled = true;
 
         const confirmado = await mostrarModalConfirmacion({
           titulo: 'Eliminar Comunicado',
@@ -858,24 +878,27 @@
           textoCancelar: 'Cancelar'
         });
 
-        if (!confirmado) return;
+        if (!confirmado) {
+          btn.disabled = false;
+          return;
+        }
 
-        if (inputAvisoId.value === id) {
+        if (inputAvisoId && inputAvisoId.value === id) {
           cancelarEdicion();
         }
 
-        // 1. Eliminación local inmediata (0 ms)
+        // 1. Eliminación local inmediata (0 ms) exclusivamente del ID seleccionado
         const listaActualizada = InasistenciasLogic.eliminarAvisoLocal(id);
         renderAvisosActivos();
         actualizarVistaPrevia();
-        mostrarToast('Aviso eliminado de cartelera. Sincronizando con Google Sheets...', 'info');
+        mostrarToast('Aviso eliminado de cartelera.', 'info');
 
         // 2. Sincronización en segundo plano con Sheets
         try {
           if (listaActualizada) {
             await InasistenciasLogic.guardarAvisosEnServidor(listaActualizada);
           }
-          mostrarToast('Aviso eliminado de Google Sheets.', 'success');
+          mostrarToast('Eliminación sincronizada con Google Sheets.', 'success');
         } catch (errSync) {
           console.warn('Error sincronizando eliminación:', errSync);
         }
@@ -887,7 +910,8 @@
   async function sincronizarConGoogleSheets() {
     try {
       const resAvisos = await InasistenciasLogic.sincronizarAvisosConServidor();
-      if (resAvisos && resAvisos.ok && resAvisos.fuente !== 'local-reciente-protegido') {
+      // Solo refrescar la vista si realmente hubo un cambio externo verificado
+      if (resAvisos && resAvisos.ok && resAvisos.cambio) {
         renderAvisosActivos();
       }
       if (typeof SheetAPI !== 'undefined') {
@@ -1139,11 +1163,14 @@
 
     // 5b. Botón Eliminar desde el Formulario (Modo Edición)
     if (btnEliminarForm) {
-      btnEliminarForm.addEventListener('click', async () => {
+      btnEliminarForm.addEventListener('click', async (e) => {
+        e.preventDefault();
         const id = inputAvisoId.value.trim();
         if (!id) return;
         const aviso = InasistenciasLogic.obtenerAvisoPorId(id);
         const titulo = aviso ? `"${aviso.titulo}"` : 'este aviso';
+
+        btnEliminarForm.disabled = true;
 
         const confirmado = await mostrarModalConfirmacion({
           titulo: 'Eliminar Comunicado',
@@ -1155,9 +1182,12 @@
           textoCancelar: 'Cancelar'
         });
 
-        if (!confirmado) return;
+        if (!confirmado) {
+          btnEliminarForm.disabled = false;
+          return;
+        }
 
-        // 1. Eliminación local inmediata (0 ms)
+        // 1. Eliminación local inmediata (0 ms) exclusivamente del ID seleccionado
         const listaActualizada = InasistenciasLogic.eliminarAvisoLocal(id);
         cancelarEdicion();
         renderAvisosActivos();

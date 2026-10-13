@@ -368,25 +368,50 @@ window.InasistenciasLogic = (function () {
       if (!Array.isArray(parsed) || parsed.length === 0) {
         return [];
       }
-      // Limpiar automáticamente avisos base de prueba de versiones anteriores
-      const filtrados = parsed.filter(a => !['aviso-atd', 'aviso-feriado', 'aviso-boletos'].includes(a.id));
-      if (filtrados.length !== parsed.length) {
-        localStorage.setItem(STORAGE_AVISOS, JSON.stringify(filtrados));
+      // Limpiar avisos obsoletos de prueba y garantizar unicidad estricta de IDs en cada elemento
+      let huboReparacion = false;
+      const idsVistos = new Set();
+      const sanitizados = [];
+
+      for (let i = 0; i < parsed.length; i++) {
+        const a = parsed[i];
+        if (!a || typeof a !== 'object') continue;
+        if (['aviso-atd', 'aviso-feriado', 'aviso-boletos'].includes(a.id)) {
+          huboReparacion = true;
+          continue;
+        }
+
+        let item = { ...a };
+        const idActual = String(item.id || '').trim();
+        if (!idActual || idsVistos.has(idActual)) {
+          item.id = 'aviso-' + Date.now() + '-' + i + '-' + Math.random().toString(36).substring(2, 7);
+          huboReparacion = true;
+        } else {
+          item.id = idActual;
+        }
+        idsVistos.add(item.id);
+        sanitizados.push(item);
       }
-      return filtrados;
+
+      if (huboReparacion) {
+        localStorage.setItem(STORAGE_AVISOS, JSON.stringify(sanitizados));
+      }
+      return sanitizados;
     } catch (e) {
       return [];
     }
   }
 
   function obtenerAvisoPorId(id) {
+    if (!id) return null;
+    const idBuscado = String(id).trim();
     const lista = obtenerAvisosGuardados();
-    return lista.find(a => a.id === id) || null;
+    return lista.find(a => String(a.id || '').trim() === idBuscado) || null;
   }
 
   // Período de gracia tras modificación local (evita que la caché desactualizada
   // de Google Sheets GViz sobreescriba altas, bajas o modificaciones inmediatas)
-  const COOLDOWN_MODIFICACION_LOCAL_MS = 30000;
+  const COOLDOWN_MODIFICACION_LOCAL_MS = 45000;
   let timestampUltimaModificacion = 0;
 
   function registrarModificacionLocal() {
@@ -399,9 +424,8 @@ window.InasistenciasLogic = (function () {
 
   // Sincroniza avisos con Google Sheets (pestaña 'Avisos') o backend
   async function sincronizarAvisosConServidor() {
-    // Si hubo una modificación local reciente (alta, baja o edición en los últimos 30s),
-    // no permitimos que la respuesta de Sheets GViz (que sufre retrasos de propagación)
-    // sobreescriba los datos locales optimistas.
+    // Si hubo una modificación local reciente (alta, baja o edición en los últimos 45s),
+    // protegemos la memoria local contra sobreescrituras remotas.
     if (modificacionLocalReciente()) {
       return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
     }
@@ -415,11 +439,26 @@ window.InasistenciasLogic = (function () {
           if (modificacionLocalReciente()) {
             return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
           }
-          const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
-          const nuevoStr = JSON.stringify(avisosSheet);
-          const huboCambio = anteriorStr !== nuevoStr;
-          localStorage.setItem(STORAGE_AVISOS, nuevoStr);
-          return { ok: true, avisos: avisosSheet, cambio: huboCambio, fuente: 'google-sheets' };
+
+          const localActual = obtenerAvisosGuardados();
+
+          // REGLA FUNDAMENTAL DE PROTECCIÓN DE DATOS:
+          // Si la planilla devuelve un array vacío (ej: hoja sin filas o Apps Script no vinculado),
+          // pero en localStorage tenemos avisos reales creados desde el formulario,
+          // JAMÁS sobreescribimos los avisos locales con un array vacío.
+          if (avisosSheet.length === 0 && localActual.length > 0) {
+            return { ok: true, avisos: localActual, cambio: false, fuente: 'local-preservado' };
+          }
+
+          if (avisosSheet.length > 0) {
+            const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
+            const nuevoStr = JSON.stringify(avisosSheet);
+            const huboCambio = anteriorStr !== nuevoStr;
+            if (huboCambio) {
+              localStorage.setItem(STORAGE_AVISOS, nuevoStr);
+            }
+            return { ok: true, avisos: avisosSheet, cambio: huboCambio, fuente: 'google-sheets' };
+          }
         }
       }
 
@@ -431,11 +470,19 @@ window.InasistenciasLogic = (function () {
           if (modificacionLocalReciente()) {
             return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
           }
-          const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
-          const nuevoStr = JSON.stringify(data.avisos);
-          const huboCambio = anteriorStr !== nuevoStr;
-          localStorage.setItem(STORAGE_AVISOS, nuevoStr);
-          return { ok: true, avisos: data.avisos, cambio: huboCambio, fuente: data.fuente || 'api' };
+          const localActual = obtenerAvisosGuardados();
+          if (data.avisos.length === 0 && localActual.length > 0) {
+            return { ok: true, avisos: localActual, cambio: false, fuente: 'local-preservado' };
+          }
+          if (data.avisos.length > 0) {
+            const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
+            const nuevoStr = JSON.stringify(data.avisos);
+            const huboCambio = anteriorStr !== nuevoStr;
+            if (huboCambio) {
+              localStorage.setItem(STORAGE_AVISOS, nuevoStr);
+            }
+            return { ok: true, avisos: data.avisos, cambio: huboCambio, fuente: data.fuente || 'api' };
+          }
         }
       }
     } catch (e) {
@@ -537,9 +584,9 @@ window.InasistenciasLogic = (function () {
     }
 
     if (!avisoModificado) {
-      // Creación de nuevo aviso
+      // Creación de nuevo aviso con ID único garantizado (timestamp + random entropy)
       const nuevo = {
-        id: 'aviso-' + Date.now(),
+        id: 'aviso-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
         titulo: aviso.titulo || 'Aviso Institucional',
         prioridad: prioridadNormalizada,
         mensaje: aviso.mensaje || '',
@@ -565,8 +612,14 @@ window.InasistenciasLogic = (function () {
       return null;
     }
 
+    if (!id || typeof id !== 'string') {
+      console.warn('conmutarEstadoAvisoLocal: ID inválido');
+      return null;
+    }
+
+    const idLimpio = id.trim();
     let lista = obtenerAvisosGuardados();
-    const aviso = lista.find(a => a.id === id);
+    const aviso = lista.find(a => String(a.id || '').trim() === idLimpio);
     if (aviso) {
       aviso.activo = aviso.activo === false ? true : false;
       localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
@@ -582,8 +635,15 @@ window.InasistenciasLogic = (function () {
       return null;
     }
 
+    if (!id || typeof id !== 'string') {
+      console.warn('eliminarAvisoLocal: ID inválido o vacío');
+      return obtenerAvisosGuardados();
+    }
+
+    const idLimpio = id.trim();
     let lista = obtenerAvisosGuardados();
-    lista = lista.filter(a => a.id !== id);
+    // Filtro estricto: solo se elimina el elemento con coincidencia exacta de ID
+    lista = lista.filter(a => String(a.id || '').trim() !== idLimpio);
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
     registrarModificacionLocal();
     return lista;
