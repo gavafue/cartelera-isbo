@@ -417,16 +417,51 @@ window.InasistenciasLogic = (function () {
     return { ok: false, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local' };
   }
 
+  const AUTH_STORAGE_KEY = 'isbo_auth_session';
+  const VALID_AUTH_TOKENS = [
+    '63e5ecffac0ae2f32c2ae12d65ef2073f21d0921deed7195f81b08c7099cf4b2', // adminisbo
+    'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36'  // isboadmin
+  ];
+
+  function obtenerTokenSesion() {
+    try {
+      const raw = sessionStorage.getItem(AUTH_STORAGE_KEY);
+      if (!raw) return '';
+      let json = raw;
+      try { json = atob(raw); } catch (e) {}
+      const data = JSON.parse(json);
+      if (!data || !data.token || !data.expira) return '';
+      if (Date.now() > data.expira) return '';
+      if (!VALID_AUTH_TOKENS.includes(data.token)) return '';
+      return data.token;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function verificarSesionAdmin() {
+    return Boolean(obtenerTokenSesion());
+  }
+
   // Persiste la lista completa de avisos en Google Sheets (Apps Script) y en el backend
   async function guardarAvisosEnServidor(lista) {
+    if (!verificarSesionAdmin()) {
+      console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
+      return { ok: false, error: 'no_autorizado' };
+    }
+
     // 1. Guardar en Google Sheets mediante Apps Script si está configurada la URL
     await guardarAvisosEnGoogleSheets(lista);
 
     // 2. Guardar en /api/avisos si está disponible
     try {
+      const token = obtenerTokenSesion();
       const res = await fetch('/api/avisos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-isbo-token': token
+        },
         body: JSON.stringify(lista)
       });
       if (res.ok) {
@@ -439,6 +474,11 @@ window.InasistenciasLogic = (function () {
   }
 
   async function guardarAviso(aviso) {
+    if (!verificarSesionAdmin()) {
+      console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
+      return null;
+    }
+
     const lista = obtenerAvisosGuardados();
     const prioridadNormalizada = normalizarCategoria(aviso.prioridad);
 
@@ -481,6 +521,11 @@ window.InasistenciasLogic = (function () {
   }
 
   async function conmutarEstadoAviso(id) {
+    if (!verificarSesionAdmin()) {
+      console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
+      return null;
+    }
+
     let lista = obtenerAvisosGuardados();
     const aviso = lista.find(a => a.id === id);
     if (aviso) {
@@ -492,6 +537,11 @@ window.InasistenciasLogic = (function () {
   }
 
   async function eliminarAviso(id) {
+    if (!verificarSesionAdmin()) {
+      console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
+      return null;
+    }
+
     let lista = obtenerAvisosGuardados();
     lista = lista.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
@@ -500,6 +550,11 @@ window.InasistenciasLogic = (function () {
   }
 
   async function restaurarAvisosPorDefecto() {
+    if (!verificarSesionAdmin()) {
+      console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
+      return [];
+    }
+
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(AVISOS_POR_DEFECTO));
     await guardarAvisosEnServidor(AVISOS_POR_DEFECTO);
     return JSON.parse(JSON.stringify(AVISOS_POR_DEFECTO));
@@ -561,6 +616,8 @@ window.InasistenciasLogic = (function () {
     eliminarAviso,
     restaurarAvisosPorDefecto,
     exportarAvisosJSON,
-    importarAvisosJSON
+    importarAvisosJSON,
+    verificarSesionAdmin,
+    obtenerTokenSesion
   };
 })();

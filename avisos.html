@@ -18,9 +18,10 @@
 <body class="min-h-screen bg-[#F1F5F9] font-sans text-slate-800 antialiased flex flex-col">
 
   <!-- ========================================================================= -->
-  <!-- 0. MODAL DE ACCESO ADMINISTRATIVO (LOGIN INSTITUCIONAL)                   -->
+  <!-- 0. PANTALLA DE ACCESO ADMINISTRATIVO (LOGIN INSTITUCIONAL)                -->
+  <!--    Único elemento visible en el DOM mientras no haya sesión activa.       -->
   <!-- ========================================================================= -->
-  <div id="auth-overlay" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 transition-opacity duration-300">
+  <div id="auth-root" class="min-h-screen flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl border-2 border-slate-200 max-w-md w-full p-7 sm:p-9 relative">
       <div class="text-center mb-6">
         <img src="logo-isbo.jpg" alt="Logo ISBO" class="h-16 w-16 mx-auto rounded-2xl object-contain shadow-md border-2 border-[#00489A]/20 bg-[#00489A] mb-3">
@@ -35,7 +36,7 @@
           </label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">person</span>
-            <input type="text" id="login-usuario" autocomplete="username" required placeholder="Usuario institucional" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/70">
+            <input type="text" id="login-usuario" autocomplete="username" required placeholder="adminisbo o isboadmin" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/70">
           </div>
         </div>
 
@@ -70,7 +71,18 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- 1. ENCABEZADO SUPERIOR: PANEL DE ADMINISTRACIÓN DE AVISOS                 -->
+  <!-- 1. CONTENEDOR ACTIVO DEL PANEL ADMINISTRATIVO (Vacío por seguridad)       -->
+  <!-- ========================================================================= -->
+  <div id="admin-root" class="hidden min-h-screen flex flex-col justify-between"></div>
+
+  <!-- ========================================================================= -->
+  <!-- 2. PLANTILLA PROTEGIDA DEL PANEL ADMINISTRATIVO                           -->
+  <!--    Inerte en el DOM: Solo se clona tras validar la sesión con éxito.      -->
+  <!-- ========================================================================= -->
+  <template id="template-panel-admin">
+
+  <!-- ========================================================================= -->
+  <!-- ENCABEZADO SUPERIOR: PANEL DE ADMINISTRACIÓN DE AVISOS                    -->
   <!-- ========================================================================= -->
   <header class="bg-[#00489A] text-white border-b-2 border-[#F8E124] shadow-md shrink-0 sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-6 py-2.5 flex items-center justify-between gap-4">
@@ -431,13 +443,15 @@
   <!-- ========================================================================= -->
   <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
+  </template>
+
   <!-- ========================================================================= -->
   <!-- 5. SCRIPTS MODULARIZADOS VANILLA                                          -->
   <!-- ========================================================================= -->
   <script src="js/qrcode.min.js"></script>
-  <script src="js/sheet.js?v=3.4"></script>
-  <script src="js/inasistencias.js?v=3.4"></script>
-  <script src="js/avisos-admin.js?v=3.4"></script>
+  <script src="js/sheet.js?v=3.5"></script>
+  <script src="js/inasistencias.js?v=3.5"></script>
+  <script src="js/avisos-admin.js?v=3.5"></script>
 
 </body>
 </html>

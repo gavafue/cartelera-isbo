@@ -18,14 +18,20 @@
   // Las credenciales NO se exponen en texto plano en el código fuente.
   // ============================================================================
   const AUTH_CONFIG = {
-    // Hash SHA-256 del usuario institucional ('isboadmin')
-    userHash: 'f6c1823b9cce392f129737fe2165e55437ce93df1697f4871c84eadf1558d488',
+    // Hashes SHA-256 de usuarios institucionales aceptados ('adminisbo' e 'isboadmin')
+    userHashes: [
+      'd9cb7b5953a65aea5e79cc3b1ae9cb32318d81c6a02c9bd1092869b8b90aa67e', // adminisbo
+      'f6c1823b9cce392f129737fe2165e55437ce93df1697f4871c84eadf1558d488'  // isboadmin
+    ],
     // Hash SHA-256 de la contraseña institucional ('avisos1sb0')
     passHash: 'aaa3fa97ccc67ad27252511e7066f7787785ecc399b0c494bdb0b84d36a498de',
     // Salting criptográfico para protección contra ataques de diccionario
     salt: 'isbo_cartelera_2026_salt',
-    // Token hash combinado esperado: SHA-256(usuario + ":" + pass + ":" + salt)
-    expectedToken: 'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36',
+    // Tokens válidos de sesión autorizada: SHA-256(usuario + ":" + pass + ":" + salt)
+    validTokens: [
+      '63e5ecffac0ae2f32c2ae12d65ef2073f21d0921deed7195f81b08c7099cf4b2', // adminisbo:avisos1sb0:salt
+      'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36'  // isboadmin:avisos1sb0:salt
+    ],
     // Duración de la sesión activa en el navegador (8 horas)
     sessionDurationMs: 8 * 60 * 60 * 1000
   };
@@ -45,7 +51,7 @@
     let result = '';
     const words = [];
     const asciiBitLength = ascii.length * 8;
-    const hash = [];
+    let hash = [];
     const k = [];
     let primeCounter = 0;
 
@@ -118,64 +124,111 @@
     return result;
   }
 
-  // Elementos de Autenticación
-  const authOverlay = document.getElementById('auth-overlay');
+  // Elementos de la capa de autenticación (únicos en el DOM inicial)
+  const authRoot = document.getElementById('auth-root');
+  const adminRoot = document.getElementById('admin-root');
+  const templatePanelAdmin = document.getElementById('template-panel-admin');
   const formLogin = document.getElementById('form-login');
   const inputLoginUsuario = document.getElementById('login-usuario');
   const inputLoginPassword = document.getElementById('login-password');
   const loginError = document.getElementById('login-error');
-  const btnLogout = document.getElementById('btn-logout');
 
-  // Elementos del formulario y modo edición
-  const form = document.getElementById('form-aviso');
-  const inputAvisoId = document.getElementById('aviso-id');
-  const inputTitulo = document.getElementById('aviso-titulo');
-  const inputMensaje = document.getElementById('aviso-mensaje');
-  const inputToggleQr = document.getElementById('aviso-toggle-qr');
+  // Variables para elementos del panel administrativo (se enlazan dinámicamente tras autenticación)
+  let btnLogout = null;
+  let form = null;
+  let inputAvisoId = null;
+  let inputTitulo = null;
+  let inputMensaje = null;
+  let inputToggleQr = null;
 
-  // Elementos de Generación Automática de QR a partir de Enlace URL
-  const contenedorQrEnlace = document.getElementById('contenedor-qr-enlace');
-  const inputQrUrl = document.getElementById('aviso-qr-url');
-  const qrPreviewBox = document.getElementById('qr-preview-box');
-  const qrPreviewImg = document.getElementById('qr-preview-img');
-  const qrPreviewUrlText = document.getElementById('qr-preview-url-text');
-  const btnLimpiarQrUrl = document.getElementById('btn-limpiar-qr-url');
+  let contenedorQrEnlace = null;
+  let inputQrUrl = null;
+  let qrPreviewBox = null;
+  let qrPreviewImg = null;
+  let qrPreviewUrlText = null;
+  let btnLimpiarQrUrl = null;
 
-  // Elementos del encabezado y botones del formulario
-  const formTitulo = document.getElementById('form-titulo');
-  const formSubtitulo = document.getElementById('form-subtitulo');
-  const badgeModoEdicion = document.getElementById('badge-modo-edicion');
-  const btnSubmitAviso = document.getElementById('btn-submit-aviso');
-  const btnSubmitTexto = document.getElementById('btn-submit-texto');
-  const btnSubmitIcon = document.getElementById('btn-submit-icon');
-  const btnCancelarEdicion = document.getElementById('btn-cancelar-edicion');
-  const btnEliminarForm = document.getElementById('btn-eliminar-form');
+  let formTitulo = null;
+  let formSubtitulo = null;
+  let badgeModoEdicion = null;
+  let btnSubmitAviso = null;
+  let btnSubmitTexto = null;
+  let btnSubmitIcon = null;
+  let btnCancelarEdicion = null;
+  let btnEliminarForm = null;
 
-  // Elementos del Modal Institucional de Confirmación / Alertas
-  const modalConfirmacion = document.getElementById('modal-confirmacion');
-  const modalConfirmacionBox = document.getElementById('modal-confirmacion-box');
-  const modalTitulo = document.getElementById('modal-titulo');
-  const modalSubtitulo = document.getElementById('modal-subtitulo');
-  const modalMensaje = document.getElementById('modal-mensaje');
-  const modalIcono = document.getElementById('modal-icono');
-  const modalIconoContainer = document.getElementById('modal-icono-container');
-  const modalBtnCancelar = document.getElementById('modal-btn-cancelar');
-  const modalBtnConfirmar = document.getElementById('modal-btn-confirmar');
-  const modalBtnConfirmarIcon = document.getElementById('modal-btn-confirmar-icon');
-  const modalBtnConfirmarTexto = document.getElementById('modal-btn-confirmar-texto');
+  let modalConfirmacion = null;
+  let modalConfirmacionBox = null;
+  let modalTitulo = null;
+  let modalSubtitulo = null;
+  let modalMensaje = null;
+  let modalIcono = null;
+  let modalIconoContainer = null;
+  let modalBtnCancelar = null;
+  let modalBtnConfirmar = null;
+  let modalBtnConfirmarIcon = null;
+  let modalBtnConfirmarTexto = null;
 
-  // Elementos de la columna derecha
-  const previewContainer = document.getElementById('preview-card-container');
-  const listaAvisosActivos = document.getElementById('lista-avisos-activos');
-  const contadorAvisos = document.getElementById('contador-avisos-activos');
-  const btnRestaurarBase = document.getElementById('btn-restaurar-base');
-  const toastContainer = document.getElementById('toast-container');
+  let previewContainer = null;
+  let listaAvisosActivos = null;
+  let contadorAvisos = null;
+  let btnRestaurarBase = null;
+  let toastContainer = null;
 
-  // Herramientas de filtrado y búsqueda
-  const busquedaAvisos = document.getElementById('busqueda-avisos');
-  const btnLimpiarBusqueda = document.getElementById('btn-limpiar-busqueda');
-  const contadorTitulo = document.getElementById('contador-titulo');
-  const contadorMensaje = document.getElementById('contador-mensaje');
+  let busquedaAvisos = null;
+  let btnLimpiarBusqueda = null;
+  let contadorTitulo = null;
+  let contadorMensaje = null;
+  let timerSyncInterval = null;
+
+  // Enlaza los elementos del DOM creados dinámicamente desde el template seguro
+  function vincularElementosAdmin() {
+    btnLogout = document.getElementById('btn-logout');
+    form = document.getElementById('form-aviso');
+    inputAvisoId = document.getElementById('aviso-id');
+    inputTitulo = document.getElementById('aviso-titulo');
+    inputMensaje = document.getElementById('aviso-mensaje');
+    inputToggleQr = document.getElementById('aviso-toggle-qr');
+
+    contenedorQrEnlace = document.getElementById('contenedor-qr-enlace');
+    inputQrUrl = document.getElementById('aviso-qr-url');
+    qrPreviewBox = document.getElementById('qr-preview-box');
+    qrPreviewImg = document.getElementById('qr-preview-img');
+    qrPreviewUrlText = document.getElementById('qr-preview-url-text');
+    btnLimpiarQrUrl = document.getElementById('btn-limpiar-qr-url');
+
+    formTitulo = document.getElementById('form-titulo');
+    formSubtitulo = document.getElementById('form-subtitulo');
+    badgeModoEdicion = document.getElementById('badge-modo-edicion');
+    btnSubmitAviso = document.getElementById('btn-submit-aviso');
+    btnSubmitTexto = document.getElementById('btn-submit-texto');
+    btnSubmitIcon = document.getElementById('btn-submit-icon');
+    btnCancelarEdicion = document.getElementById('btn-cancelar-edicion');
+    btnEliminarForm = document.getElementById('btn-eliminar-form');
+
+    modalConfirmacion = document.getElementById('modal-confirmacion');
+    modalConfirmacionBox = document.getElementById('modal-confirmacion-box');
+    modalTitulo = document.getElementById('modal-titulo');
+    modalSubtitulo = document.getElementById('modal-subtitulo');
+    modalMensaje = document.getElementById('modal-mensaje');
+    modalIcono = document.getElementById('modal-icono');
+    modalIconoContainer = document.getElementById('modal-icono-container');
+    modalBtnCancelar = document.getElementById('modal-btn-cancelar');
+    modalBtnConfirmar = document.getElementById('modal-btn-confirmar');
+    modalBtnConfirmarIcon = document.getElementById('modal-btn-confirmar-icon');
+    modalBtnConfirmarTexto = document.getElementById('modal-btn-confirmar-texto');
+
+    previewContainer = document.getElementById('preview-card-container');
+    listaAvisosActivos = document.getElementById('lista-avisos-activos');
+    contadorAvisos = document.getElementById('contador-avisos-activos');
+    btnRestaurarBase = document.getElementById('btn-restaurar-base');
+    toastContainer = document.getElementById('toast-container');
+
+    busquedaAvisos = document.getElementById('busqueda-avisos');
+    btnLimpiarBusqueda = document.getElementById('btn-limpiar-busqueda');
+    contadorTitulo = document.getElementById('contador-titulo');
+    contadorMensaje = document.getElementById('contador-mensaje');
+  }
 
   // Constantes de temporización
   const INTERVALO_SYNC_SHEETS_MS = 25 * 1000; // Revisar planilla cada 25 segundos
@@ -843,9 +896,8 @@
   // ============================================================================
 
   // Crea una sesión criptográficamente firmada con tiempo de expiración
-  function crearSesionSegura() {
+  function crearSesionSegura(token) {
     const expira = Date.now() + AUTH_CONFIG.sessionDurationMs;
-    const token = AUTH_CONFIG.expectedToken;
     const firma = calcularSHA256(`${token}:${expira}:${AUTH_CONFIG.salt}`);
     const sesionData = JSON.stringify({ token, expira, firma });
     try {
@@ -879,15 +931,20 @@
         return false;
       }
 
-      // 2. Verificar la firma criptográfica para evitar alteraciones manuales en DevTools
+      // 2. Verificar correspondencia con los tokens institucionales autorizados
+      if (!AUTH_CONFIG.validTokens.includes(data.token)) {
+        cerrarSesionSegura();
+        return false;
+      }
+
+      // 3. Verificar la firma criptográfica para evitar alteraciones manuales en DevTools
       const firmaEsperada = calcularSHA256(`${data.token}:${data.expira}:${AUTH_CONFIG.salt}`);
       if (data.firma !== firmaEsperada) {
         cerrarSesionSegura();
         return false;
       }
 
-      // 3. Verificar correspondencia con el token institucional
-      return data.token === AUTH_CONFIG.expectedToken;
+      return true;
     } catch (e) {
       cerrarSesionSegura();
       return false;
@@ -902,24 +959,41 @@
     } catch (e) {}
   }
 
-  // Control de Acceso y Visibilidad del Panel
-  function verificarAutenticacion() {
-    const estaAutenticado = sesionEsValida();
-    if (authOverlay) {
-      if (estaAutenticado) {
-        authOverlay.classList.add('hidden');
-      } else {
-        authOverlay.classList.remove('hidden');
-        if (inputLoginUsuario) setTimeout(() => inputLoginUsuario.focus(), 150);
-      }
+  // Desmonta por completo el panel administrativo del árbol DOM
+  function desmontarPanelAdmin() {
+    if (timerSyncInterval) {
+      clearInterval(timerSyncInterval);
+      timerSyncInterval = null;
+    }
+    if (adminRoot) {
+      adminRoot.innerHTML = '';
+      adminRoot.classList.add('hidden');
+    }
+    if (authRoot) {
+      authRoot.classList.remove('hidden');
+    }
+    if (inputLoginUsuario) {
+      setTimeout(() => inputLoginUsuario.focus(), 150);
     }
   }
 
-  function inicializarAutenticacion() {
+  // Clona e inserta el template del panel administrativo y vincula controladores
+  function montarPanelAdmin() {
+    if (authRoot) authRoot.classList.add('hidden');
+    if (adminRoot && templatePanelAdmin) {
+      adminRoot.innerHTML = '';
+      adminRoot.appendChild(templatePanelAdmin.content.cloneNode(true));
+      adminRoot.classList.remove('hidden');
+    }
+    vincularElementosAdmin();
+    inicializarEventosAdmin();
+  }
+
+  function inicializarFormularioLogin() {
     if (formLogin) {
       formLogin.addEventListener('submit', (e) => {
         e.preventDefault();
-        const usuarioIngresado = (inputLoginUsuario?.value || '').trim();
+        const usuarioIngresado = (inputLoginUsuario?.value || '').trim().toLowerCase();
         const passwordIngresado = (inputLoginPassword?.value || '').trim();
 
         // 1. Generar los hashes SHA-256 de las credenciales ingresadas
@@ -928,16 +1002,15 @@
         const hashCombinado = calcularSHA256(`${usuarioIngresado}:${passwordIngresado}:${AUTH_CONFIG.salt}`);
 
         // 2. Comparar de forma estricta contra los hashes prealmacenados
-        const esValido =
-          hashUsuario === AUTH_CONFIG.userHash &&
-          hashPassword === AUTH_CONFIG.passHash &&
-          hashCombinado === AUTH_CONFIG.expectedToken;
+        const usuarioValido = AUTH_CONFIG.userHashes.includes(hashUsuario);
+        const passwordValido = hashPassword === AUTH_CONFIG.passHash;
+        const tokenValido = AUTH_CONFIG.validTokens.includes(hashCombinado);
 
-        if (esValido) {
-          crearSesionSegura();
+        if (usuarioValido && passwordValido && tokenValido) {
+          crearSesionSegura(hashCombinado);
           if (loginError) loginError.classList.add('hidden');
-          if (authOverlay) authOverlay.classList.add('hidden');
           formLogin.reset();
+          montarPanelAdmin();
           mostrarToast('Sesión administrativa iniciada correctamente.', 'success');
         } else {
           if (loginError) loginError.classList.remove('hidden');
@@ -948,7 +1021,10 @@
         }
       });
     }
+  }
 
+  // Inicialización de Eventos y Controladores del Panel de Administración
+  function inicializarEventosAdmin() {
     if (btnLogout) {
       btnLogout.addEventListener('click', async () => {
         const confirmado = await mostrarModalConfirmacion({
@@ -963,22 +1039,13 @@
 
         if (confirmado) {
           cerrarSesionSegura();
-          if (authOverlay) authOverlay.classList.remove('hidden');
+          desmontarPanelAdmin();
           if (formLogin) formLogin.reset();
           if (loginError) loginError.classList.add('hidden');
-          if (inputLoginUsuario) setTimeout(() => inputLoginUsuario.focus(), 150);
           mostrarToast('Sesión cerrada.', 'info');
         }
       });
     }
-
-    verificarAutenticacion();
-  }
-
-  // Inicialización de Eventos y Controladores
-  function inicializar() {
-    // 0. Autenticación de acceso
-    inicializarAutenticacion();
 
     // Control y actualización de contadores de caracteres
     function actualizarContadores() {
@@ -1232,12 +1299,24 @@
 
     // 11. Monitoreo frecuente automático en segundo plano (cada 25 s)
     sincronizarConGoogleSheets();
-    setInterval(sincronizarConGoogleSheets, INTERVALO_SYNC_SHEETS_MS);
+    if (timerSyncInterval) clearInterval(timerSyncInterval);
+    timerSyncInterval = setInterval(sincronizarConGoogleSheets, INTERVALO_SYNC_SHEETS_MS);
 
     // Render inicial
     actualizarContadores();
     actualizarVistaPrevia();
     renderAvisosActivos();
+  }
+
+  // Inicialización general
+  function inicializar() {
+    inicializarFormularioLogin();
+
+    if (sesionEsValida()) {
+      montarPanelAdmin();
+    } else {
+      desmontarPanelAdmin();
+    }
   }
 
   document.addEventListener('DOMContentLoaded', inicializar);
