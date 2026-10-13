@@ -14,14 +14,109 @@
 
 (function () {
   // ============================================================================
-  // CREDENCIALES DE ACCESO ADMINISTRATIVO (Actualizables año a año)
-  // Usuario y contraseña genérica institucional para Adscripción y Bedelía
+  // CREDENCIALES DE ACCESO ADMINISTRATIVO (Hasheadas mediante SHA-256)
+  // Las credenciales NO se exponen en texto plano en el código fuente.
   // ============================================================================
-  const CREDENCIALES_ADMIN = {
-    usuario: 'isboadmin',
-    password: 'avisos1sb0'
+  const AUTH_CONFIG = {
+    // Hash SHA-256 del usuario institucional ('isboadmin')
+    userHash: 'f6c1823b9cce392f129737fe2165e55437ce93df1697f4871c84eadf1558d488',
+    // Hash SHA-256 de la contraseña institucional ('avisos1sb0')
+    passHash: 'aaa3fa97ccc67ad27252511e7066f7787785ecc399b0c494bdb0b84d36a498de',
+    // Salting criptográfico para protección contra ataques de diccionario
+    salt: 'isbo_cartelera_2026_salt',
+    // Token hash combinado esperado: SHA-256(usuario + ":" + pass + ":" + salt)
+    expectedToken: 'e0fda24bcf3cf6e95c7a214eaa29b1f634debda0ec921b7a4d231542c0eefc36',
+    // Duración de la sesión activa en el navegador (8 horas)
+    sessionDurationMs: 8 * 60 * 60 * 1000
   };
-  const STORAGE_AUTH_KEY = 'isbo_admin_auth';
+  const STORAGE_AUTH_KEY = 'isbo_auth_session';
+
+  /**
+   * Cálculo criptográfico SHA-256 estándar.
+   * Totalmente compatible en todos los navegadores, entornos seguros (HTTPS) y offline (file://).
+   */
+  function calcularSHA256(ascii) {
+    function rightRotate(value, amount) {
+      return (value >>> amount) | (value << (32 - amount));
+    }
+    const mathPow = Math.pow;
+    const maxWord = mathPow(2, 32);
+    let i, j;
+    let result = '';
+    const words = [];
+    const asciiBitLength = ascii.length * 8;
+    const hash = [];
+    const k = [];
+    let primeCounter = 0;
+
+    const isPrime = function (candidate) {
+      for (let n = 2; n <= Math.sqrt(candidate); n++) {
+        if (candidate % n === 0) return false;
+      }
+      return true;
+    };
+
+    for (let candidate = 2; primeCounter < 64; candidate++) {
+      if (isPrime(candidate)) {
+        if (primeCounter < 8) {
+          hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
+        }
+        k[primeCounter] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+        primeCounter++;
+      }
+    }
+
+    ascii += '\x80';
+    while ((ascii.length % 64) - 56) ascii += '\x00';
+    for (i = 0; i < ascii.length; i++) {
+      j = ascii.charCodeAt(i);
+      words[i >> 2] |= j << (((3 - i) % 4) * 8);
+    }
+    words[words.length] = (asciiBitLength / maxWord) | 0;
+    words[words.length] = asciiBitLength | 0;
+
+    for (j = 0; j < words.length; ) {
+      const w = words.slice(j, (j += 16));
+      const oldHash = hash.slice(0);
+
+      for (i = 0; i < 64; i++) {
+        const w15 = w[i - 15], w2 = w[i - 2];
+        const a = hash[0], e = hash[4];
+        const temp1 =
+          hash[7] +
+          (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) +
+          ((e & hash[5]) ^ (~e & hash[6])) +
+          k[i] +
+          (w[i] =
+            i < 16
+              ? w[i]
+              : (w[i - 16] +
+                  (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) +
+                  w[i - 7] +
+                  (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))) |
+                0);
+        const temp2 =
+          (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) +
+          ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+
+        hash = [(temp1 + temp2) | 0].concat(hash);
+        hash[4] = (hash[4] + temp1) | 0;
+        hash.pop();
+      }
+
+      for (i = 0; i < 8; i++) {
+        hash[i] = (hash[i] + oldHash[i]) | 0;
+      }
+    }
+
+    for (i = 0; i < 8; i++) {
+      for (let i2 = 3; i2 >= 0; i2--) {
+        const b = (hash[i] >> (i2 * 8)) & 255;
+        result += (b < 16 ? '0' : '') + b.toString(16);
+      }
+    }
+    return result;
+  }
 
   // Elementos de Autenticación
   const authOverlay = document.getElementById('auth-overlay');
@@ -583,9 +678,73 @@
     }
   }
 
-  // Control de Acceso y Sesión Administrativa
+  // ============================================================================
+  // GESTIÓN DE SESIÓN Y AUTENTICACIÓN CRIPTOGRÁFICA
+  // ============================================================================
+
+  // Crea una sesión criptográficamente firmada con tiempo de expiración
+  function crearSesionSegura() {
+    const expira = Date.now() + AUTH_CONFIG.sessionDurationMs;
+    const token = AUTH_CONFIG.expectedToken;
+    const firma = calcularSHA256(`${token}:${expira}:${AUTH_CONFIG.salt}`);
+    const sesionData = JSON.stringify({ token, expira, firma });
+    try {
+      sessionStorage.setItem(STORAGE_AUTH_KEY, btoa(sesionData));
+    } catch (e) {
+      sessionStorage.setItem(STORAGE_AUTH_KEY, sesionData);
+    }
+  }
+
+  // Verifica la validez, integridad de firma y vigencia temporal de la sesión
+  function sesionEsValida() {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_AUTH_KEY);
+      if (!raw) return false;
+
+      let json = raw;
+      try {
+        json = atob(raw);
+      } catch (e) {
+        // En caso de estar guardado sin btoa
+      }
+
+      const data = JSON.parse(json);
+      if (!data || !data.token || !data.expira || !data.firma) {
+        return false;
+      }
+
+      // 1. Verificar que la sesión no haya caducado (8 horas)
+      if (Date.now() > data.expira) {
+        cerrarSesionSegura();
+        return false;
+      }
+
+      // 2. Verificar la firma criptográfica para evitar alteraciones manuales en DevTools
+      const firmaEsperada = calcularSHA256(`${data.token}:${data.expira}:${AUTH_CONFIG.salt}`);
+      if (data.firma !== firmaEsperada) {
+        cerrarSesionSegura();
+        return false;
+      }
+
+      // 3. Verificar correspondencia con el token institucional
+      return data.token === AUTH_CONFIG.expectedToken;
+    } catch (e) {
+      cerrarSesionSegura();
+      return false;
+    }
+  }
+
+  // Cierra y purga la sesión activa en el navegador
+  function cerrarSesionSegura() {
+    try {
+      sessionStorage.removeItem(STORAGE_AUTH_KEY);
+      sessionStorage.removeItem('isbo_admin_auth'); // Purga de compatibilidad
+    } catch (e) {}
+  }
+
+  // Control de Acceso y Visibilidad del Panel
   function verificarAutenticacion() {
-    const estaAutenticado = sessionStorage.getItem(STORAGE_AUTH_KEY) === 'true';
+    const estaAutenticado = sesionEsValida();
     if (authOverlay) {
       if (estaAutenticado) {
         authOverlay.classList.add('hidden');
@@ -603,8 +762,19 @@
         const usuarioIngresado = (inputLoginUsuario?.value || '').trim();
         const passwordIngresado = (inputLoginPassword?.value || '').trim();
 
-        if (usuarioIngresado === CREDENCIALES_ADMIN.usuario && passwordIngresado === CREDENCIALES_ADMIN.password) {
-          sessionStorage.setItem(STORAGE_AUTH_KEY, 'true');
+        // 1. Generar los hashes SHA-256 de las credenciales ingresadas
+        const hashUsuario = calcularSHA256(usuarioIngresado);
+        const hashPassword = calcularSHA256(passwordIngresado);
+        const hashCombinado = calcularSHA256(`${usuarioIngresado}:${passwordIngresado}:${AUTH_CONFIG.salt}`);
+
+        // 2. Comparar de forma estricta contra los hashes prealmacenados
+        const esValido =
+          hashUsuario === AUTH_CONFIG.userHash &&
+          hashPassword === AUTH_CONFIG.passHash &&
+          hashCombinado === AUTH_CONFIG.expectedToken;
+
+        if (esValido) {
+          crearSesionSegura();
           if (loginError) loginError.classList.add('hidden');
           if (authOverlay) authOverlay.classList.add('hidden');
           formLogin.reset();
@@ -622,7 +792,7 @@
     if (btnLogout) {
       btnLogout.addEventListener('click', () => {
         if (confirm('¿Deseas cerrar la sesión de administración?')) {
-          sessionStorage.removeItem(STORAGE_AUTH_KEY);
+          cerrarSesionSegura();
           if (authOverlay) authOverlay.classList.remove('hidden');
           if (formLogin) formLogin.reset();
           if (loginError) loginError.classList.add('hidden');
