@@ -409,9 +409,9 @@ window.InasistenciasLogic = (function () {
     return lista.find(a => String(a.id || '').trim() === idBuscado) || null;
   }
 
-  // Período de gracia tras modificación local (evita que la caché desactualizada
-  // de Google Sheets GViz sobreescriba altas, bajas o modificaciones inmediatas)
-  const COOLDOWN_MODIFICACION_LOCAL_MS = 45000;
+  // Período de gracia tras modificación local en este dispositivo
+  // (15 segundos para dar tiempo a que Apps Script escriba en la planilla)
+  const COOLDOWN_MODIFICACION_LOCAL_MS = 15000;
   let timestampUltimaModificacion = 0;
 
   function registrarModificacionLocal() {
@@ -424,8 +424,8 @@ window.InasistenciasLogic = (function () {
 
   // Sincroniza avisos con Google Sheets (pestaña 'Avisos') o backend
   async function sincronizarAvisosConServidor() {
-    // Si hubo una modificación local reciente (alta, baja o edición en los últimos 45s),
-    // protegemos la memoria local contra sobreescrituras remotas.
+    // Si hubo una modificación local reciente en este mismo dispositivo (últimos 15s),
+    // protegemos la memoria local contra sobreescrituras remotas prematuras.
     if (modificacionLocalReciente()) {
       return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
     }
@@ -440,41 +440,27 @@ window.InasistenciasLogic = (function () {
             return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
           }
 
-          const localActual = obtenerAvisosGuardados();
+          const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
+          const nuevoStr = JSON.stringify(avisosSheet);
+          const huboCambio = anteriorStr !== nuevoStr;
 
-          // REGLA FUNDAMENTAL DE PROTECCIÓN DE DATOS:
-          // Si la planilla devuelve un array vacío (ej: hoja sin filas o Apps Script no vinculado),
-          // pero en localStorage tenemos avisos reales creados desde el formulario,
-          // JAMÁS sobreescribimos los avisos locales con un array vacío.
-          if (avisosSheet.length === 0 && localActual.length > 0) {
-            return { ok: true, avisos: localActual, cambio: false, fuente: 'local-preservado' };
+          if (huboCambio) {
+            localStorage.setItem(STORAGE_AVISOS, nuevoStr);
           }
 
-          if (avisosSheet.length > 0) {
-            const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
-            const nuevoStr = JSON.stringify(avisosSheet);
-            const huboCambio = anteriorStr !== nuevoStr;
-            if (huboCambio) {
-              localStorage.setItem(STORAGE_AVISOS, nuevoStr);
-            }
-            return { ok: true, avisos: avisosSheet, cambio: huboCambio, fuente: 'google-sheets' };
-          }
+          return { ok: true, avisos: avisosSheet, cambio: huboCambio, fuente: 'google-sheets' };
         }
       }
 
       // 2. Respaldo: endpoint local o avisos.json
-      const res = await fetch('/api/avisos');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.avisos)) {
-          if (modificacionLocalReciente()) {
-            return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
-          }
-          const localActual = obtenerAvisosGuardados();
-          if (data.avisos.length === 0 && localActual.length > 0) {
-            return { ok: true, avisos: localActual, cambio: false, fuente: 'local-preservado' };
-          }
-          if (data.avisos.length > 0) {
+      try {
+        const res = await fetch('/api/avisos', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.avisos)) {
+            if (modificacionLocalReciente()) {
+              return { ok: true, avisos: obtenerAvisosGuardados(), cambio: false, fuente: 'local-reciente-protegido' };
+            }
             const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
             const nuevoStr = JSON.stringify(data.avisos);
             const huboCambio = anteriorStr !== nuevoStr;
@@ -484,7 +470,7 @@ window.InasistenciasLogic = (function () {
             return { ok: true, avisos: data.avisos, cambio: huboCambio, fuente: data.fuente || 'api' };
           }
         }
-      }
+      } catch (errApi) {}
     } catch (e) {
       // Sin conexión o corriendo bajo protocolo file://
     }
@@ -551,7 +537,13 @@ window.InasistenciasLogic = (function () {
 
     const sheetsOk = resultados[0].status === 'fulfilled' && Boolean(resultados[0].value?.ok);
     const apiOk = resultados[1].status === 'fulfilled' && (resultados[1].value?.ok !== false);
-    return { ok: sheetsOk || apiOk, sheetsOk, apiOk };
+    const exito = sheetsOk || apiOk;
+    return {
+      ok: exito,
+      sheetsOk,
+      apiOk,
+      error: !exito ? (resultados[0].value?.error || 'No se pudo conectar con Google Sheets') : null
+    };
   }
 
   // Guardado optimista síncrono local (0 ms de demora, actualización instantánea)

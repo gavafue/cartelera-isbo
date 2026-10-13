@@ -11,8 +11,8 @@
 
 (function () {
   let datosCargados = { docentes: [] };
-  const INTERVALO_SYNC_SHEETS_MS = 25 * 1000; // Revisar Google Sheets cada 25 segundos
-  const INTERVALO_SYNC_AVISOS_MS = 20 * 1000; // Revisar avisos en la nube cada 20 segundos
+  const INTERVALO_SYNC_SHEETS_MS = 20 * 1000; // Revisar inasistencias docentes en Google Sheets cada 20 segundos
+  const INTERVALO_SYNC_AVISOS_MS = 10 * 1000; // Revisar avisos en Google Sheets cada 10 segundos para actualización ágil en TV
 
   const CACHE_KEY_DOCENTES = 'isbo_docentes_cache';
 
@@ -55,7 +55,7 @@
     UI.renderAvisosConMarquee('contenedor-avisos');
   }
 
-  // Sincroniza avisos institucionales con el backend en Vercel KV
+  // Sincroniza avisos institucionales directamente con Google Sheets (pestaña 'Avisos')
   async function sincronizarAvisosServidor(forzarRender = false) {
     try {
       const res = await InasistenciasLogic.sincronizarAvisosConServidor();

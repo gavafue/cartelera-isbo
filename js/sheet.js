@@ -286,6 +286,9 @@ window.SheetAPI = (function () {
 
   // Procesa las filas de la pestaña Avisos en Google Sheets
   function procesarFilasAvisos(rows) {
+    if (rows === null) {
+      return null;
+    }
     if (!Array.isArray(rows) || rows.length === 0) {
       return [];
     }
@@ -296,34 +299,36 @@ window.SheetAPI = (function () {
     let colQr = 3;
     let colActivo = 4;
     let filaInicio = 0;
+    let tieneHeaderAvisos = false;
 
     // Detectar si la primera fila es encabezado
     const r0 = rows[0];
     if (r0 && r0.c) {
-      let esHeader = false;
       r0.c.forEach((cell, cIdx) => {
         if (!cell) return;
         const val = String(cell.f || cell.v || '').trim().toLowerCase();
         if (val.includes('título') || val.includes('titulo') || val.includes('asunto') || val.includes('tema')) {
           colTitulo = cIdx;
-          esHeader = true;
+          tieneHeaderAvisos = true;
         } else if (val.includes('mensaje') || val.includes('texto') || val.includes('detalle') || val.includes('descripci') || val.includes('comunicado')) {
           colMensaje = cIdx;
-          esHeader = true;
+          tieneHeaderAvisos = true;
         } else if (val.includes('categor') || val.includes('prioridad') || val.includes('tipo')) {
           colCategoria = cIdx;
-          esHeader = true;
         } else if (val.includes('qr') || val.includes('enlace') || val.includes('link') || val.includes('url')) {
           colQr = cIdx;
-          esHeader = true;
         } else if (val.includes('activo') || val.includes('estado') || val.includes('publicado') || val.includes('visible')) {
           colActivo = cIdx;
-          esHeader = true;
         }
       });
-      if (esHeader) {
+      if (tieneHeaderAvisos) {
         filaInicio = 1;
       }
+    }
+
+    // Si la hoja no tiene las columnas esperadas de Avisos, no sobreescribir
+    if (!tieneHeaderAvisos) {
+      return null;
     }
 
     const avisos = [];
@@ -388,6 +393,7 @@ window.SheetAPI = (function () {
       const nombreCallback = 'callback_sheets_' + Math.floor(Math.random() * 1000000);
       const script = document.createElement('script');
       const sheetParam = sheetName ? `&sheet=${encodeURIComponent(sheetName)}` : '';
+      const nonce = Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
       let resuelto = false;
 
@@ -395,14 +401,22 @@ window.SheetAPI = (function () {
         if (resuelto) return;
         resuelto = true;
         try {
-          const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0${sheetParam}&_t=${Date.now()}`;
-          const res = await fetch(url);
+          const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0${sheetParam}&_t=${Date.now()}&_nocache=${nonce}`;
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) {
+            resolve(null);
+            return;
+          }
           const texto = await res.text();
           const json = JSON.parse(texto.replace(/^[\s\S]*setResponse\(/, '').replace(/\);?\s*$/, ''));
-          resolve(json?.table?.rows || []);
+          if (json && json.status === 'ok' && json.table) {
+            resolve(json.table.rows || []);
+          } else {
+            resolve(null);
+          }
         } catch (err) {
           console.warn(`Error al cargar hoja "${sheetName || 'principal'}" con fetch:`, err);
-          resolve([]);
+          resolve(null);
         }
       };
 
@@ -411,10 +425,14 @@ window.SheetAPI = (function () {
         resuelto = true;
         script.remove();
         delete window[nombreCallback];
-        resolve(respuesta?.table?.rows || []);
+        if (respuesta && respuesta.status === 'ok' && respuesta.table) {
+          resolve(respuesta.table.rows || []);
+        } else {
+          resolve(null);
+        }
       };
 
-      script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${nombreCallback}&headers=0${sheetParam}&_t=${Date.now()}`;
+      script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${nombreCallback}&headers=0${sheetParam}&_t=${Date.now()}&_nocache=${nonce}`;
       script.onerror = () => {
         script.remove();
         delete window[nombreCallback];
@@ -433,12 +451,14 @@ window.SheetAPI = (function () {
   // Obtiene las inasistencias docentes (primera hoja)
   async function obtenerDatos() {
     const rows = await cargarFilas(SPREADSHEET_ID, '');
+    if (rows === null) return { docentes: [] };
     return procesarFilas(rows);
   }
 
   // Obtiene los comunicados institucionales desde la pestaña 'Avisos'
   async function obtenerAvisos() {
     const rows = await cargarFilas(SPREADSHEET_ID, 'Avisos');
+    if (rows === null) return null;
     return procesarFilasAvisos(rows);
   }
 

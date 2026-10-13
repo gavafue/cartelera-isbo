@@ -223,7 +223,7 @@
   }
 
   // Constantes de temporización
-  const INTERVALO_SYNC_SHEETS_MS = 25 * 1000; // Revisar planilla cada 25 segundos
+  const INTERVALO_SYNC_SHEETS_MS = 10 * 1000; // Revisar planilla cada 10 segundos
 
   // Estado interno para la URL y la imagen QR generada en Base64
   let imagenQRActual = '';
@@ -351,24 +351,21 @@
 
       const onConfirmar = () => finalizar(true);
       const onCancelar = () => finalizar(false);
+      // Evitar que hacer clic fuera del modal o presionar Escape lo cierre:
+      // Solo se puede cerrar interactuando con los botones explícitos de Aceptar / Cancelar
       const onBackdrop = (e) => {
-        if (e.target === modalConfirmacion) finalizar(false);
-      };
-      const onKeydown = (e) => {
-        if (e.key === 'Escape') finalizar(false);
+        e.stopPropagation();
       };
 
       const limpiarListeners = () => {
         if (modalBtnConfirmar) modalBtnConfirmar.removeEventListener('click', onConfirmar);
         if (modalBtnCancelar) modalBtnCancelar.removeEventListener('click', onCancelar);
         modalConfirmacion.removeEventListener('click', onBackdrop);
-        document.removeEventListener('keydown', onKeydown);
       };
 
       if (modalBtnConfirmar) modalBtnConfirmar.addEventListener('click', onConfirmar);
       if (modalBtnCancelar) modalBtnCancelar.addEventListener('click', onCancelar);
       modalConfirmacion.addEventListener('click', onBackdrop);
-      document.addEventListener('keydown', onKeydown);
 
       modalConfirmacion.classList.remove('hidden');
       requestAnimationFrame(() => {
@@ -829,33 +826,68 @@
       });
     });
 
-    // Eventos para Botones Pausar / Activar (Ocultar / Mostrar de TV) - Reacción inmediata (0 ms)
+    // Eventos para Botones Pausar / Activar (Ocultar / Mostrar de TV) con confirmación explícita
     listaAvisosActivos.querySelectorAll('.btn-toggle-aviso').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
         const id = btn.getAttribute('data-id');
         if (!id) return;
 
+        const aviso = InasistenciasLogic.obtenerAvisoPorId(id);
+        if (!aviso) return;
+        const vaAActivar = aviso.activo === false;
+
         btn.disabled = true;
-        const aviso = InasistenciasLogic.conmutarEstadoAvisoLocal(id);
+
+        const confirmado = await mostrarModalConfirmacion({
+          titulo: vaAActivar ? 'Mostrar en Pantalla TV' : 'Ocultar de Pantalla TV',
+          mensaje: vaAActivar
+            ? `¿Deseas mostrar y reactivar el comunicado <strong>"${aviso.titulo}"</strong> en la Pantalla TV?<br><br><span class="text-xs text-emerald-700 font-bold">Volverá a estar visible inmediatamente para los estudiantes en la cartelera.</span>`
+            : `¿Deseas ocultar el comunicado <strong>"${aviso.titulo}"</strong> de la Pantalla TV?<br><br><span class="text-xs text-amber-700 font-bold">El aviso quedará en pausa y no se mostrará en la cartelera hasta que lo reactives.</span>`,
+          tipo: vaAActivar ? 'info' : 'advertencia',
+          icono: vaAActivar ? 'visibility' : 'visibility_off',
+          textoConfirmar: vaAActivar ? 'Sí, Mostrar en TV' : 'Sí, Ocultar Aviso',
+          iconoConfirmar: vaAActivar ? 'visibility' : 'visibility_off',
+          textoCancelar: 'Cancelar'
+        });
+
+        if (!confirmado) {
+          btn.disabled = false;
+          return;
+        }
+
+        const avisoModificado = InasistenciasLogic.conmutarEstadoAvisoLocal(id);
         renderAvisosActivos();
         actualizarVistaPrevia();
 
-        if (aviso) {
-          const estaActivo = aviso.activo !== false;
-          const estado = estaActivo ? 'activado y visible en Pantalla TV' : 'pausado (oculto de la Pantalla TV)';
-          mostrarToast(`Aviso "${aviso.titulo}" ${estado}.`, 'info');
-
-          const listaActual = InasistenciasLogic.obtenerAvisosGuardados();
-          InasistenciasLogic.guardarAvisosEnServidor(listaActual).then(() => {
-            mostrarToast('Sincronizado con Google Sheets.', 'success');
-          }).catch(console.warn);
+        const listaActual = InasistenciasLogic.obtenerAvisosGuardados();
+        try {
+          const resSync = await InasistenciasLogic.guardarAvisosEnServidor(listaActual);
+          if (resSync && resSync.ok === false) {
+            throw new Error(resSync.error || 'No se pudo sincronizar con Google Sheets');
+          }
+          await mostrarModalAlerta({
+            titulo: vaAActivar ? 'Comunicado Visible en TV' : 'Comunicado Ocultado',
+            mensaje: `El comunicado <strong>"${aviso.titulo}"</strong> fue ${vaAActivar ? 'activado' : 'ocultado'} y sincronizado exitosamente con Google Sheets.`,
+            tipo: 'exito',
+            icono: vaAActivar ? 'check_circle' : 'visibility_off',
+            textoBoton: 'Aceptar'
+          });
+        } catch (errSync) {
+          console.warn('Error al sincronizar con Google Sheets:', errSync);
+          await mostrarModalAlerta({
+            titulo: 'Guardado con Advertencia',
+            mensaje: `El estado se actualizó localmente pero ocurrió un problema al sincronizar con Google Sheets: ${errSync.message || errSync}. Se reintentará en segundo plano.`,
+            tipo: 'advertencia',
+            icono: 'warning',
+            textoBoton: 'Entendido'
+          });
         }
       });
     });
 
-    // Eventos para Botones Eliminar (Elimina estrictamente el aviso correspondiente al ID)
+    // Eventos para Botones Eliminar con confirmación y retroalimentación modal completa
     listaAvisosActivos.querySelectorAll('.btn-eliminar-aviso').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -887,20 +919,35 @@
           cancelarEdicion();
         }
 
-        // 1. Eliminación local inmediata (0 ms) exclusivamente del ID seleccionado
+        // 1. Eliminación local inmediata exclusivamente del ID seleccionado
         const listaActualizada = InasistenciasLogic.eliminarAvisoLocal(id);
         renderAvisosActivos();
         actualizarVistaPrevia();
-        mostrarToast('Aviso eliminado de cartelera.', 'info');
 
         // 2. Sincronización en segundo plano con Sheets
         try {
           if (listaActualizada) {
-            await InasistenciasLogic.guardarAvisosEnServidor(listaActualizada);
+            const resSync = await InasistenciasLogic.guardarAvisosEnServidor(listaActualizada);
+            if (resSync && resSync.ok === false) {
+              throw new Error(resSync.error || 'No se pudo conectar con Google Sheets');
+            }
           }
-          mostrarToast('Eliminación sincronizada con Google Sheets.', 'success');
+          await mostrarModalAlerta({
+            titulo: 'Comunicado Eliminado',
+            mensaje: `El aviso <strong>${titulo}</strong> fue eliminado definitivamente de la Pantalla TV y de la planilla Google Sheets con éxito.`,
+            tipo: 'exito',
+            icono: 'delete_sweep',
+            textoBoton: 'Aceptar'
+          });
         } catch (errSync) {
           console.warn('Error sincronizando eliminación:', errSync);
+          await mostrarModalAlerta({
+            titulo: 'Eliminado Localmente',
+            mensaje: `El aviso se eliminó en este dispositivo pero ocurrió un error al actualizar Google Sheets: ${errSync.message || errSync}. Se reintentará automáticamente.`,
+            tipo: 'advertencia',
+            icono: 'warning',
+            textoBoton: 'Entendido'
+          });
         }
       });
     });
@@ -1196,21 +1243,36 @@
         mostrarToast('Aviso eliminado de cartelera. Sincronizando con Google Sheets...', 'info');
 
         // 2. Sincronización en segundo plano con Google Sheets
+        let errorEliminar = null;
         try {
           if (listaActualizada) {
-            await InasistenciasLogic.guardarAvisosEnServidor(listaActualizada);
+            const res = await InasistenciasLogic.guardarAvisosEnServidor(listaActualizada);
+            if (res && res.ok === false) {
+              errorEliminar = res.error || 'No se pudo conectar con Google Sheets';
+            }
           }
-          mostrarToast('Aviso eliminado de Google Sheets con éxito.', 'success');
         } catch (errSync) {
           console.warn('Error sincronizando eliminación:', errSync);
+          errorEliminar = errSync.message || 'Error de conexión';
         }
 
-        await mostrarModalAlerta({
-          titulo: 'Comunicado Eliminado',
-          mensaje: `El aviso ${titulo} ha sido eliminado con éxito de la Pantalla TV y de la planilla Google Sheets.`,
-          tipo: 'exito',
-          icono: 'delete_sweep'
-        });
+        if (errorEliminar) {
+          await mostrarModalAlerta({
+            titulo: 'Eliminado con Advertencia',
+            mensaje: `El aviso ${titulo} fue eliminado en este dispositivo pero ocurrió un problema al sincronizar con Google Sheets: ${errorEliminar}. Se reintentará automáticamente.`,
+            tipo: 'advertencia',
+            icono: 'warning',
+            textoBoton: 'Entendido'
+          });
+        } else {
+          await mostrarModalAlerta({
+            titulo: 'Comunicado Eliminado',
+            mensaje: `El aviso ${titulo} ha sido eliminado con éxito de la Pantalla TV y de la planilla Google Sheets.`,
+            tipo: 'exito',
+            icono: 'delete_sweep',
+            textoBoton: 'Aceptar'
+          });
+        }
       });
     }
 
@@ -1232,9 +1294,35 @@
           cancelarEdicion();
           renderAvisosActivos();
           actualizarVistaPrevia();
-          mostrarToast('Vaciando comunicados y sincronizando con Google Sheets...', 'info');
-          await InasistenciasLogic.guardarAvisosEnServidor(vacia);
-          mostrarToast('Todos los comunicados han sido eliminados de la cartelera y de Google Sheets.', 'success');
+          
+          let errorVaciar = null;
+          try {
+            const res = await InasistenciasLogic.guardarAvisosEnServidor(vacia);
+            if (res && res.ok === false) {
+              errorVaciar = res.error || 'Error al conectar con Google Sheets';
+            }
+          } catch (errSync) {
+            console.warn('Error al vaciar avisos en servidor:', errSync);
+            errorVaciar = errSync.message || 'Error de conexión';
+          }
+
+          if (errorVaciar) {
+            await mostrarModalAlerta({
+              titulo: 'Vaciado con Advertencia',
+              mensaje: `Todos los comunicados se vaciaron localmente, pero falló la sincronización con Google Sheets: ${errorVaciar}.`,
+              tipo: 'advertencia',
+              icono: 'warning',
+              textoBoton: 'Entendido'
+            });
+          } else {
+            await mostrarModalAlerta({
+              titulo: 'Cartelera Vaciada con Éxito',
+              mensaje: 'Todos los comunicados han sido eliminados de la Pantalla TV y de la pestaña Avisos en Google Sheets.',
+              tipo: 'exito',
+              icono: 'delete_sweep',
+              textoBoton: 'Aceptar'
+            });
+          }
         }
       });
     }
@@ -1252,12 +1340,24 @@
         const urlIngresada = inputQrUrl.value.trim();
 
         if (!titulo || !mensaje) {
-          mostrarToast('Por favor completa el título y el mensaje del comunicado.', 'error');
+          await mostrarModalAlerta({
+            titulo: 'Campos Incompletos',
+            mensaje: 'Por favor completa el título y el mensaje del comunicado antes de publicar.',
+            tipo: 'advertencia',
+            icono: 'warning',
+            textoBoton: 'Entendido'
+          });
           return;
         }
 
         if (tieneQr && !urlIngresada) {
-          mostrarToast('Has seleccionado incluir código QR. Por favor escribe el enlace web de destino o desmarca la casilla.', 'warning');
+          await mostrarModalAlerta({
+            titulo: 'Falta Enlace de Código QR',
+            mensaje: 'Has marcado la opción de incluir código QR. Por favor escribe el enlace web de destino o desmarca la casilla del código QR.',
+            tipo: 'advertencia',
+            icono: 'link_off',
+            textoBoton: 'Completar Enlace'
+          });
           inputQrUrl.focus();
           return;
         }
@@ -1296,7 +1396,13 @@
         });
 
         if (!resultadoLocal) {
-          mostrarToast('Error de autenticación: Sesión no válida.', 'error');
+          await mostrarModalAlerta({
+            titulo: 'Error de Autenticación',
+            mensaje: 'La sesión administrativa ha caducado o no es válida. Por favor inicia sesión nuevamente.',
+            tipo: 'peligro',
+            icono: 'lock_person',
+            textoBoton: 'Entendido'
+          });
           return;
         }
 
@@ -1305,37 +1411,39 @@
         renderAvisosActivos();
         actualizarVistaPrevia();
 
-        mostrarToast(
-          esEdicion
-            ? 'Aviso modificado en cartelera. Sincronizando con Google Sheets...'
-            : 'Aviso publicado en cartelera. Sincronizando con Google Sheets...',
-          'info'
-        );
-
-        // 3. Sincronización en segundo plano con Google Sheets y backend
+        // 3. Sincronización en segundo plano con Google Sheets
+        let errorSync = null;
         try {
-          await InasistenciasLogic.guardarAvisosEnServidor(resultadoLocal.lista);
-          mostrarToast(
-            esEdicion
-              ? 'Aviso modificado y sincronizado con Google Sheets con éxito.'
-              : 'Aviso publicado y sincronizado con Google Sheets con éxito.',
-            'success'
-          );
+          const resSync = await InasistenciasLogic.guardarAvisosEnServidor(resultadoLocal.lista);
+          if (resSync && resSync.ok === false) {
+            errorSync = resSync.error || 'No se pudo conectar con Google Sheets';
+          }
         } catch (errSync) {
           console.warn('Error sincronizando con Google Sheets en segundo plano:', errSync);
-          mostrarToast('Aviso guardado localmente. La sincronización remota reintentará en segundo plano.', 'warning');
+          errorSync = errSync.message || 'Error de conexión con Google Sheets';
         }
 
-        const textoExito = esEdicion
-          ? `El aviso <strong>"${titulo}"</strong> ha sido modificado y sincronizado correctamente con la Pantalla TV y la planilla Google Sheets.`
-          : `El aviso <strong>"${titulo}"</strong> fue publicado con éxito en la Pantalla TV y sincronizado en la planilla Google Sheets.`;
+        if (errorSync) {
+          await mostrarModalAlerta({
+            titulo: 'Guardado con Advertencia',
+            mensaje: `El aviso <strong>"${titulo}"</strong> se guardó en este dispositivo, pero falló la sincronización con Google Sheets: ${errorSync}. Se reintentará automáticamente.`,
+            tipo: 'advertencia',
+            icono: 'warning',
+            textoBoton: 'Entendido'
+          });
+        } else {
+          const textoExito = esEdicion
+            ? `El aviso <strong>"${titulo}"</strong> ha sido modificado y sincronizado correctamente con la Pantalla TV y la planilla Google Sheets.`
+            : `El aviso <strong>"${titulo}"</strong> fue publicado con éxito en la Pantalla TV y sincronizado en la planilla Google Sheets.`;
 
-        await mostrarModalAlerta({
-          titulo: esEdicion ? '¡Aviso Modificado!' : '¡Aviso Publicado con Éxito!',
-          mensaje: textoExito,
-          tipo: 'exito',
-          icono: 'verified'
-        });
+          await mostrarModalAlerta({
+            titulo: esEdicion ? '¡Aviso Modificado!' : '¡Aviso Publicado con Éxito!',
+            mensaje: textoExito,
+            tipo: 'exito',
+            icono: 'verified',
+            textoBoton: 'Aceptar'
+          });
+        }
       });
     }
 
