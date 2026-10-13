@@ -441,14 +441,32 @@ window.InasistenciasLogic = (function () {
           }
 
           const anteriorStr = localStorage.getItem(STORAGE_AVISOS) || '[]';
-          const nuevoStr = JSON.stringify(avisosSheet);
+          let listaLocal = [];
+          try { listaLocal = JSON.parse(anteriorStr); } catch (e) { listaLocal = []; }
+
+          // Reconciliar avisos de Google Sheets preservando ID y QR Base64 local si coincide
+          const avisosReconciliados = avisosSheet.map((remoto, idx) => {
+            const coincidente = Array.isArray(listaLocal) ? listaLocal.find(l =>
+              (l && l.id && l.id === remoto.id) ||
+              (l && l.titulo === remoto.titulo && l.mensaje === remoto.mensaje)
+            ) : null;
+
+            return {
+              ...remoto,
+              id: (coincidente && coincidente.id) ? coincidente.id : remoto.id,
+              qrImagen: (coincidente && coincidente.qrImagen) ? coincidente.qrImagen : (remoto.qrImagen || ''),
+              fechaCreacion: (coincidente && coincidente.fechaCreacion) ? coincidente.fechaCreacion : (remoto.fechaCreacion || new Date().toISOString())
+            };
+          });
+
+          const nuevoStr = JSON.stringify(avisosReconciliados);
           const huboCambio = anteriorStr !== nuevoStr;
 
           if (huboCambio) {
             localStorage.setItem(STORAGE_AVISOS, nuevoStr);
           }
 
-          return { ok: true, avisos: avisosSheet, cambio: huboCambio, fuente: 'google-sheets' };
+          return { ok: true, avisos: avisosReconciliados, cambio: huboCambio, fuente: 'google-sheets' };
         }
       }
 

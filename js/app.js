@@ -12,7 +12,7 @@
 (function () {
   let datosCargados = { docentes: [] };
   const INTERVALO_SYNC_SHEETS_MS = 20 * 1000; // Revisar inasistencias docentes en Google Sheets cada 20 segundos
-  const INTERVALO_SYNC_AVISOS_MS = 10 * 1000; // Revisar avisos en Google Sheets cada 10 segundos para actualización ágil en TV
+  const INTERVALO_SYNC_AVISOS_MS = 5 * 1000;  // Revisar avisos en Google Sheets cada 5 segundos para actualización ágil en TV
 
   const CACHE_KEY_DOCENTES = 'isbo_docentes_cache';
 
@@ -115,9 +115,21 @@
     // 6. Carga y sincronización inicial con Google Sheets
     await sincronizarConGoogleSheets();
 
-    // 7. Verificación frecuente: cada 25s Sheets, cada 20s Avisos en la nube
+    // 7. Verificación frecuente: cada 20s inasistencias en Sheets, cada 5s avisos en la nube
     setInterval(sincronizarConGoogleSheets, INTERVALO_SYNC_SHEETS_MS);
     setInterval(() => sincronizarAvisosServidor(false), INTERVALO_SYNC_AVISOS_MS);
+
+    // 8. Resincronización inmediata al recuperar foco o reconectar a internet
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        sincronizarAvisosServidor(true);
+        sincronizarConGoogleSheets();
+      }
+    });
+    window.addEventListener('online', () => {
+      sincronizarAvisosServidor(true);
+      sincronizarConGoogleSheets();
+    });
   }
 
   document.addEventListener('DOMContentLoaded', iniciar);

@@ -223,7 +223,7 @@
   }
 
   // Constantes de temporización
-  const INTERVALO_SYNC_SHEETS_MS = 10 * 1000; // Revisar planilla cada 10 segundos
+  const INTERVALO_SYNC_SHEETS_MS = 6 * 1000; // Revisar planilla cada 6 segundos para actualización ágil entre funcionarios
 
   // Estado interno para la URL y la imagen QR generada en Base64
   let imagenQRActual = '';
@@ -269,6 +269,42 @@
       toast.classList.add('opacity-0', '-translate-y-2');
       setTimeout(() => toast.remove(), 300);
     }, 3500);
+  }
+
+  /**
+   * Muestra un estado de carga en el modal existente para dar feedback instantáneo (0 ms).
+   * Mantiene el modal abierto mientras se sincroniza con Google Sheets.
+   */
+  function mostrarModalEstadoCargando(mensajeCustom = 'Guardando y sincronizando con Google Sheets...') {
+    if (!modalConfirmacion || !modalConfirmacionBox) return;
+
+    if (modalTitulo) modalTitulo.textContent = 'Sincronizando con Google Sheets';
+    if (modalSubtitulo) modalSubtitulo.textContent = 'ISBO · Gestión de Cartelera';
+    if (modalMensaje) {
+      modalMensaje.innerHTML = `
+        <div class="flex items-center gap-3.5 py-2">
+          <div class="h-6 w-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin shrink-0"></div>
+          <span class="text-xs sm:text-sm font-semibold text-slate-700">${mensajeCustom}</span>
+        </div>
+      `;
+    }
+
+    if (modalIcono) modalIcono.textContent = 'sync';
+    if (modalIconoContainer) {
+      modalIconoContainer.className = 'h-12 w-12 rounded-2xl flex items-center justify-center font-bold shrink-0 bg-sky-100 text-sky-800 animate-spin';
+    }
+
+    if (modalBtnCancelar) modalBtnCancelar.classList.add('hidden');
+    if (modalBtnConfirmar) {
+      modalBtnConfirmar.className = 'px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-none flex items-center gap-1.5 cursor-not-allowed bg-slate-300 text-slate-600';
+      modalBtnConfirmar.disabled = true;
+    }
+    if (modalBtnConfirmarTexto) modalBtnConfirmarTexto.textContent = 'Sincronizando...';
+    if (modalBtnConfirmarIcon) modalBtnConfirmarIcon.textContent = 'hourglass_empty';
+
+    modalConfirmacion.classList.remove('hidden');
+    modalConfirmacionBox.classList.remove('scale-95', 'opacity-0');
+    modalConfirmacionBox.classList.add('scale-100', 'opacity-100');
   }
 
   /**
@@ -321,6 +357,7 @@
       if (modalIconoContainer) modalIconoContainer.className = `h-12 w-12 rounded-2xl flex items-center justify-center font-bold shrink-0 ${containerClases}`;
 
       if (modalBtnConfirmar) {
+        modalBtnConfirmar.disabled = false;
         modalBtnConfirmar.className = `px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer ${btnClases}`;
       }
       if (modalBtnConfirmarTexto) modalBtnConfirmarTexto.textContent = textoConfirmar;
@@ -349,7 +386,18 @@
         }, 150);
       };
 
-      const onConfirmar = () => finalizar(true);
+      const onConfirmar = () => {
+        if (resuelto) return;
+        resuelto = true;
+        limpiarListeners();
+        if (esAlertaSimple) {
+          finalizar(true);
+        } else {
+          mostrarModalEstadoCargando();
+          resolve(true);
+        }
+      };
+
       const onCancelar = () => finalizar(false);
       // Evitar que hacer clic fuera del modal o presionar Escape lo cierre:
       // Solo se puede cerrar interactuando con los botones explícitos de Aceptar / Cancelar
@@ -882,6 +930,7 @@
         const avisoModificado = InasistenciasLogic.conmutarEstadoAvisoLocal(id);
         renderAvisosActivos();
         actualizarVistaPrevia();
+        mostrarToast(vaAActivar ? 'Activando comunicado en Pantalla TV...' : 'Ocultando comunicado de Pantalla TV...', 'info');
 
         const listaActual = InasistenciasLogic.obtenerAvisosGuardados();
         try {
@@ -945,6 +994,7 @@
         const listaActualizada = InasistenciasLogic.eliminarAvisoLocal(id);
         renderAvisosActivos();
         actualizarVistaPrevia();
+        mostrarToast('Eliminando comunicado de cartelera...', 'info');
 
         // 2. Sincronización en segundo plano con Sheets
         try {
@@ -1410,6 +1460,7 @@
         cancelarEdicion();
         renderAvisosActivos();
         actualizarVistaPrevia();
+        mostrarToast(esEdicion ? 'Guardando cambios del comunicado...' : 'Publicando comunicado en cartelera...', 'info');
 
         // 3. Sincronización en segundo plano con Google Sheets
         let errorSync = null;
@@ -1504,6 +1555,19 @@
     } else {
       desmontarPanelAdmin();
     }
+
+    // Sincronización inmediata al cambiar de pestaña en el celular o reconectar internet
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && sesionEsValida()) {
+        sincronizarConGoogleSheets();
+      }
+    });
+
+    window.addEventListener('online', () => {
+      if (sesionEsValida()) {
+        sincronizarConGoogleSheets();
+      }
+    });
   }
 
   document.addEventListener('DOMContentLoaded', inicializar);

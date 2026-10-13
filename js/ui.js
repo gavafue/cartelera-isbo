@@ -114,6 +114,38 @@ window.UI = (function () {
     }
   }
 
+  const qrCacheOffline = new Map();
+
+  function resolverImagenQR(a) {
+    if (a.qrImagen) return a.qrImagen;
+    if (!a.qrUrl) return '';
+    if (qrCacheOffline.has(a.qrUrl)) return qrCacheOffline.get(a.qrUrl);
+
+    if (typeof QRCode !== 'undefined') {
+      try {
+        const tempDiv = document.createElement('div');
+        new QRCode(tempDiv, {
+          text: a.qrUrl,
+          width: 256,
+          height: 256,
+          colorDark: '#000000',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        const canvas = tempDiv.querySelector('canvas');
+        if (canvas) {
+          const dataUrl = canvas.toDataURL('image/png');
+          qrCacheOffline.set(a.qrUrl, dataUrl);
+          return dataUrl;
+        }
+      } catch (e) {}
+    }
+
+    const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(a.qrUrl)}`;
+    qrCacheOffline.set(a.qrUrl, fallback);
+    return fallback;
+  }
+
   // Renderiza los avisos institucionales con las 6 categorías oficiales (EXCLUSIVAMENTE desde el formulario)
   function renderAvisosConMarquee(contenedorId) {
     const contenedor = document.getElementById(contenedorId);
@@ -127,7 +159,7 @@ window.UI = (function () {
     avisosActivos.forEach(a => {
       const config = InasistenciasLogic.obtenerConfiguracionCategoria(a.prioridad);
       const tieneQR = a.tieneQr && (a.qrImagen || a.qrUrl);
-      const imgQR = a.qrImagen || (a.qrUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(a.qrUrl)}` : '');
+      const imgQR = tieneQR ? resolverImagenQR(a) : '';
 
       listaTarjetas.push(`
         <div class="${config.cardBg} rounded-2xl p-4 sm:p-5 shadow-md relative overflow-hidden flex flex-col justify-between">

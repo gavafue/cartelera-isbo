@@ -298,6 +298,7 @@ window.SheetAPI = (function () {
     let colCategoria = 2;
     let colQr = 3;
     let colActivo = 4;
+    let colFecha = 5;
     let filaInicio = 0;
     let tieneHeaderAvisos = false;
 
@@ -319,6 +320,8 @@ window.SheetAPI = (function () {
           colQr = cIdx;
         } else if (val.includes('activo') || val.includes('estado') || val.includes('publicado') || val.includes('visible')) {
           colActivo = cIdx;
+        } else if (val.includes('fecha') || val.includes('cread') || val.includes('date') || val.includes('time')) {
+          colFecha = cIdx;
         }
       });
       if (tieneHeaderAvisos) {
@@ -337,6 +340,7 @@ window.SheetAPI = (function () {
       if (!r || !r.c) continue;
 
       const obtenerVal = (col) => {
+        if (col === -1 || col === undefined) return '';
         const cell = r.c[col];
         if (!cell) return '';
         return String(cell.f || cell.v || '').trim();
@@ -347,6 +351,7 @@ window.SheetAPI = (function () {
       const categoriaRaw = obtenerVal(colCategoria);
       const qrUrl = obtenerVal(colQr);
       const activoRaw = obtenerVal(colActivo).toLowerCase();
+      const fechaCreacion = obtenerVal(colFecha);
 
       // Si no hay ni título ni mensaje, ignorar fila vacía
       if (!titulo && !mensaje) continue;
@@ -380,6 +385,7 @@ window.SheetAPI = (function () {
         tieneQr: Boolean(qrUrl),
         qrUrl: qrUrl || '',
         activo: activo,
+        fechaCreacion: fechaCreacion || new Date().toISOString(),
         fuente: 'google-sheets'
       });
     }
@@ -396,10 +402,14 @@ window.SheetAPI = (function () {
       const nonce = Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
       let resuelto = false;
+      let timerTimeout = null;
 
       const fallbackFetch = async () => {
         if (resuelto) return;
         resuelto = true;
+        clearTimeout(timerTimeout);
+        script.remove();
+        delete window[nombreCallback];
         try {
           const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0${sheetParam}&_t=${Date.now()}&_nocache=${nonce}`;
           const res = await fetch(url, { cache: 'no-store' });
@@ -415,7 +425,6 @@ window.SheetAPI = (function () {
             resolve(null);
           }
         } catch (err) {
-          console.warn(`Error al cargar hoja "${sheetName || 'principal'}" con fetch:`, err);
           resolve(null);
         }
       };
@@ -423,6 +432,7 @@ window.SheetAPI = (function () {
       window[nombreCallback] = function (respuesta) {
         if (resuelto) return;
         resuelto = true;
+        clearTimeout(timerTimeout);
         script.remove();
         delete window[nombreCallback];
         if (respuesta && respuesta.status === 'ok' && respuesta.table) {
@@ -434,15 +444,13 @@ window.SheetAPI = (function () {
 
       script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${nombreCallback}&headers=0${sheetParam}&_t=${Date.now()}&_nocache=${nonce}`;
       script.onerror = () => {
-        script.remove();
-        delete window[nombreCallback];
-        fallbackFetch();
+        if (!resuelto) fallbackFetch();
       };
 
-      // Si JSONP tarda más de 3 segundos, intentar fetch
-      setTimeout(() => {
+      // Tolerancia generosa de 12 segundos para redes móviles y wifi escolar antes de fallback
+      timerTimeout = setTimeout(() => {
         if (!resuelto) fallbackFetch();
-      }, 3000);
+      }, 12000);
 
       document.head.appendChild(script);
     });

@@ -36,7 +36,7 @@
           </label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">person</span>
-            <input type="text" id="login-usuario" autocomplete="username" required placeholder="Usuario institucional" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/70">
+            <input type="text" id="login-usuario" autocomplete="username" required placeholder="Usuario institucional" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-base sm:text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/70">
           </div>
         </div>
 
@@ -46,7 +46,7 @@
           </label>
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">lock</span>
-            <input type="password" id="login-password" autocomplete="current-password" required placeholder="••••••••" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/70">
+            <input type="password" id="login-password" autocomplete="current-password" required placeholder="••••••••" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-base sm:text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/70">
           </div>
         </div>
 
@@ -182,7 +182,7 @@
               </label>
               <span id="contador-titulo" class="text-[11px] text-slate-500 font-mono font-bold">0 / 65</span>
             </div>
-            <input type="text" id="aviso-titulo" required maxlength="65" placeholder="Ej: Jornada de Elección de Horas / Inscripciones a Exámenes..." class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/50">
+            <input type="text" id="aviso-titulo" required maxlength="65" placeholder="Ej: Jornada de Elección de Horas / Inscripciones a Exámenes..." class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-base sm:text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/50">
           </div>
 
           <!-- 2. Categoría Oficial del Comunicado (6 Categorías Institucionales) -->
@@ -257,7 +257,7 @@
               </label>
               <span id="contador-mensaje" class="text-[11px] text-slate-500 font-mono font-bold">0 caracteres</span>
             </div>
-            <textarea id="aviso-mensaje" required rows="4" placeholder="Escribe el cuerpo del comunicado con información concisa y clara para los estudiantes..." class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/50 resize-y"></textarea>
+            <textarea id="aviso-mensaje" required rows="4" placeholder="Escribe el cuerpo del comunicado con información concisa y clara para los estudiantes..." class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-base sm:text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-slate-50/50 resize-y"></textarea>
           </div>
 
           <!-- 4. Toggle y Enlace para Generación Automática de Código QR -->
@@ -286,7 +286,7 @@
                 </div>
                 <div class="relative">
                   <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">link</span>
-                  <input type="url" id="aviso-qr-url" placeholder="https://utu.edu.uy/tramites/inscripciones" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-xs sm:text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-white">
+                  <input type="url" id="aviso-qr-url" placeholder="https://utu.edu.uy/tramites/inscripciones" class="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-slate-200 text-base sm:text-sm font-medium focus:border-sky-500 focus:outline-none transition-colors text-slate-900 bg-white">
                 </div>
                 <p class="text-[11px] text-slate-500 mt-1">
                   Escribe o pega la dirección web completa. El QR se dibuja automáticamente en alta resolución y alto contraste para ser legible a distancia desde un celular apuntando a la TV.
@@ -370,7 +370,7 @@
           <div class="space-y-2.5 mb-4">
             <div class="relative">
               <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
-              <input type="text" id="busqueda-avisos" placeholder="Buscar por título o contenido..." class="w-full pl-8 pr-8 py-2 rounded-xl border-2 border-slate-200 text-xs font-medium focus:border-sky-500 focus:outline-none text-slate-800 bg-slate-50/70 transition-colors">
+              <input type="text" id="busqueda-avisos" placeholder="Buscar por título o contenido..." class="w-full pl-8 pr-8 py-2 rounded-xl border-2 border-slate-200 text-base sm:text-xs font-medium focus:border-sky-500 focus:outline-none text-slate-800 bg-slate-50/70 transition-colors">
               <button type="button" id="btn-limpiar-busqueda" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
                 <span class="material-symbols-outlined text-sm">cancel</span>
               </button>
@@ -449,9 +449,9 @@
   <!-- 5. SCRIPTS MODULARIZADOS VANILLA                                          -->
   <!-- ========================================================================= -->
   <script src="js/qrcode.min.js"></script>
-  <script src="js/sheet.js?v=4.1"></script>
-  <script src="js/inasistencias.js?v=4.1"></script>
-  <script src="js/avisos-admin.js?v=4.1"></script>
+  <script src="js/sheet.js?v=4.2"></script>
+  <script src="js/inasistencias.js?v=4.2"></script>
+  <script src="js/avisos-admin.js?v=4.2"></script>
 
 </body>
 </html>
