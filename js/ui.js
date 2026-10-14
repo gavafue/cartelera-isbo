@@ -106,19 +106,19 @@ window.UI = (function () {
           <!-- Nivel 1: Docente y Estado -->
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
-              <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl ${color} text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0">
+              <div class="h-8 w-8 sm:h-9 sm:w-9 rounded-xl ${color} text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0">
                 ${iniciales}
               </div>
               <div class="min-w-0 flex-1">
-                <h3 class="text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 leading-snug break-words">
+                <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug break-normal">
                   ${d.nombre}
                 </h3>
-                <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Docente</span>
+                <span class="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Docente</span>
               </div>
             </div>
             <div class="shrink-0 ${badgeTemporal ? 'flex flex-col items-end gap-1' : 'text-right'}">
               ${badgeTemporalHtml}
-              <span class="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border shadow-xs inline-block whitespace-nowrap ${estado.clase}">
+              <span class="text-[9px] sm:text-[10px] md:text-xs font-bold px-2 py-0.5 sm:py-1 rounded-lg border shadow-xs inline-block whitespace-nowrap ${estado.clase}">
                 ${estado.texto}
               </span>
             </div>
@@ -147,8 +147,9 @@ window.UI = (function () {
     // Si hay 4 o más docentes, activar marquesina continua para visualización completa
     if (docentes.length >= 4) {
       const separador = `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2 ${esColumnaAncha ? 'col-span-2' : ''}"></div>`;
+      const bloque = tarjetasHtml + separador;
       contenedor.className = `animate-marquee-v ${claseBase}`;
-      contenedor.innerHTML = tarjetasHtml + separador + tarjetasHtml;
+      contenedor.innerHTML = bloque + bloque;
       const duracion = Math.max(24, Math.round(docentes.length * 6));
       contenedor.style.animationDuration = `${duracion}s`;
     } else {
@@ -172,12 +173,14 @@ window.UI = (function () {
   // Renderiza las tarjetas de docentes ausentes de MAÑANA
   function renderDocentesDeManana(contenedorId, docentes, fechaManana) {
     const elTitulo = document.getElementById('titulo-header-manana');
-    if (elTitulo && InasistenciasLogic.formatearEncabezadoManana) {
-      elTitulo.textContent = InasistenciasLogic.formatearEncabezadoManana(fechaManana);
+    if (elTitulo) {
+      elTitulo.textContent = 'Inasistencias Mañana';
     }
     const elFecha = document.getElementById('fecha-manana');
     if (elFecha) {
-      elFecha.textContent = InasistenciasLogic.formatearFecha(fechaManana);
+      elFecha.textContent = InasistenciasLogic.formatearFechaCortaConDia
+        ? InasistenciasLogic.formatearFechaCortaConDia(fechaManana)
+        : InasistenciasLogic.formatearFecha(fechaManana);
     }
     renderDocentes(contenedorId, 'contador-docentes-manana', docentes, fechaManana, {
       tipo: 'manana',
@@ -441,16 +444,16 @@ window.UI = (function () {
     // Invariante estricto: Hoy SIEMPRE ha de ser más grande que Mañana (pctHoy > pctManana),
     // respetando a su vez la variación según la densidad de datos.
     const dTotal = dHoy + dManana + dAvisos;
-    const minAvisos = nAvisosConQr > 0 ? 25 : 20;
-    const maxAvisos = 34;
+    const minAvisos = 20;
+    const maxAvisos = nAvisosConQr > 0 ? 26 : 24; // Prioridad visual para las columnas docentes
     let pctAvisos = Math.round((dAvisos / dTotal) * 100);
     pctAvisos = Math.max(minAvisos, Math.min(maxAvisos, pctAvisos));
 
     const espacioRestante = 100 - pctAvisos;
     const ratioHM = dHoy / (dHoy + dManana);
 
-    // Hoy recibe entre el 55% y el 72% del espacio disponible restante
-    const shareHoy = 0.55 + (ratioHM * 0.17);
+    // Hoy recibe entre el 54% y el 68% del espacio disponible restante
+    const shareHoy = 0.54 + (ratioHM * 0.14);
     let pctHoy = Math.round(espacioRestante * shareHoy);
     let pctManana = espacioRestante - pctHoy;
 

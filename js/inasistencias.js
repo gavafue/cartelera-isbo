@@ -228,6 +228,15 @@ window.InasistenciasLogic = (function () {
     return `Inasistencias Mañana · ${diaNom} ${diaNum}/${mesNum}`;
   }
 
+  // Formato compacto para subtítulo de próxima jornada: "Jueves 15/10 · Previsión"
+  function formatearFechaCortaConDia(fecha = new Date()) {
+    const d = new Date(fecha);
+    const diaNom = DIAS[d.getDay()];
+    const diaNum = d.getDate();
+    const mesNum = (d.getMonth() + 1).toString().padStart(2, '0');
+    return `${diaNom} ${diaNum}/${mesNum} · Previsión`;
+  }
+
   /**
    * ==========================================================================
    * 6 CATEGORÍAS EDUCATIVAS OFICIALES (Cada una con un color distintivo)
@@ -785,6 +794,7 @@ window.InasistenciasLogic = (function () {
     obtenerIniciales,
     obtenerColor,
     formatearFecha,
+    formatearFechaCortaConDia,
     formatearEncabezadoManana,
     CATEGORIAS_AVISO,
     normalizarCategoria,

@@ -81,18 +81,18 @@
     <section id="columna-hoy" class="flex flex-col h-auto lg:h-full bg-white rounded-2xl shadow-lg border-2 border-slate-200/90 overflow-hidden transition-all duration-300 min-w-0">
       <!-- Encabezado Compacto: Inasistencias Hoy -->
       <div class="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white shrink-0 flex items-center justify-between shadow-sm gap-2">
-        <div class="flex items-center gap-2 min-w-0">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
           <div class="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 border border-white/30">
             <span class="material-symbols-outlined text-white text-xl">person_cancel</span>
           </div>
-          <div class="min-w-0">
-            <h2 class="text-sm sm:text-base lg:text-lg font-black tracking-wide uppercase leading-none truncate">Inasistencias Hoy</h2>
-            <span class="text-[10px] sm:text-[11px] font-bold text-red-100 block leading-tight mt-0.5">Jornada escolar activa</span>
+          <div class="min-w-0 flex-1">
+            <h2 class="text-xs md:text-sm 2xl:text-base font-black tracking-wide uppercase leading-tight truncate">Inasistencias Hoy</h2>
+            <span class="text-[10px] sm:text-[11px] font-bold text-red-100 block leading-tight mt-0.5 truncate">Jornada escolar activa</span>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 bg-white/20 px-2 sm:px-2.5 py-1 rounded-lg border border-white/30 shrink-0">
-          <span class="text-base sm:text-lg font-black text-white leading-none" id="contador-docentes">0</span>
-          <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-white">Docentes</span>
+        <div class="flex items-center gap-1 bg-white/20 px-2 sm:px-2.5 py-1 rounded-lg border border-white/30 shrink-0">
+          <span class="text-xs sm:text-sm 2xl:text-base font-black text-white leading-none" id="contador-docentes">0</span>
+          <span class="hidden 2xl:inline text-[10px] font-bold uppercase tracking-wider text-white">Docentes</span>
         </div>
       </div>
 
@@ -113,13 +113,13 @@
             <span class="material-symbols-outlined text-white text-xl">event_upcoming</span>
           </div>
           <div class="min-w-0 flex-1">
-            <h2 id="titulo-header-manana" class="text-xs sm:text-sm md:text-base lg:text-lg font-black tracking-wide uppercase leading-snug break-words">Inasistencias Mañana · Cargando...</h2>
-            <span id="fecha-manana" class="text-[10px] sm:text-[11px] font-bold text-sky-100 block leading-tight mt-0.5">Previsión próxima jornada</span>
+            <h2 id="titulo-header-manana" class="text-xs md:text-sm 2xl:text-base font-black tracking-wide uppercase leading-tight truncate">Inasistencias Mañana</h2>
+            <span id="fecha-manana" class="text-[10px] sm:text-[11px] font-bold text-sky-100 block leading-tight mt-0.5 truncate">Previsión próxima jornada</span>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 bg-white/20 px-2 sm:px-2.5 py-1 rounded-lg border border-white/30 shrink-0">
-          <span class="text-base sm:text-lg font-black text-white leading-none" id="contador-docentes-manana">0</span>
-          <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-white">Docentes</span>
+        <div class="flex items-center gap-1 bg-white/20 px-2 sm:px-2.5 py-1 rounded-lg border border-white/30 shrink-0">
+          <span class="text-xs sm:text-sm 2xl:text-base font-black text-white leading-none" id="contador-docentes-manana">0</span>
+          <span class="hidden 2xl:inline text-[10px] font-bold uppercase tracking-wider text-white">Docentes</span>
         </div>
       </div>
 
@@ -140,13 +140,13 @@
             <span class="material-symbols-outlined text-[#F8E124] text-xl">campaign</span>
           </div>
           <div class="min-w-0 flex-1">
-            <h2 class="text-xs sm:text-sm lg:text-base font-black tracking-wide uppercase leading-tight truncate">Avisos Bedelía</h2>
-            <span class="text-[10px] sm:text-[11px] font-bold text-slate-300 block leading-tight mt-0.5">Cartelera activa</span>
+            <h2 class="text-xs md:text-sm 2xl:text-base font-black tracking-wide uppercase leading-tight truncate">Avisos Bedelía</h2>
+            <span class="text-[10px] sm:text-[11px] font-bold text-slate-300 block leading-tight mt-0.5 truncate">Cartelera activa</span>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 bg-white/15 px-2 sm:px-2.5 py-1 rounded-lg border border-white/20 shrink-0">
-          <span class="text-base sm:text-lg font-black text-[#F8E124] leading-none" id="contador-avisos">0</span>
-          <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-white">Avisos</span>
+        <div class="flex items-center gap-1 bg-white/15 px-2 sm:px-2.5 py-1 rounded-lg border border-white/20 shrink-0">
+          <span class="text-xs sm:text-sm 2xl:text-base font-black text-[#F8E124] leading-none" id="contador-avisos">0</span>
+          <span class="hidden 2xl:inline text-[10px] font-bold uppercase tracking-wider text-white">Avisos</span>
         </div>
       </div>
 
