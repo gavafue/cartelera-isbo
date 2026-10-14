@@ -181,13 +181,9 @@ window.UI = (function () {
     }
     renderDocentes(contenedorId, 'contador-docentes-manana', docentes, fechaManana, {
       tipo: 'manana',
-      cardClase: 'border-l-[6px] border-l-indigo-600 bg-gradient-to-r from-indigo-50/40 via-white to-white',
+      cardClase: 'border-l-[6px] border-l-indigo-600 bg-white',
       hoverBorder: 'hover:border-indigo-400',
-      badgeTemporal: {
-        texto: 'MAÑANA',
-        icono: 'event',
-        clase: 'bg-indigo-700 text-white shadow-xs'
-      },
+      badgeTemporal: null,
       tituloVacio: 'Sin inasistencias docentes para mañana',
       descVacio: 'No se registran inasistencias de docentes previstas para la jornada de mañana.'
     });
