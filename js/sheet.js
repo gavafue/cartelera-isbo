@@ -335,6 +335,7 @@ window.SheetAPI = (function () {
     }
 
     const avisos = [];
+    const firmasVistas = new Set();
     for (let i = filaInicio; i < rows.length; i++) {
       const r = rows[i];
       if (!r || !r.c) continue;
@@ -355,6 +356,13 @@ window.SheetAPI = (function () {
 
       // Si no hay ni título ni mensaje, ignorar fila vacía
       if (!titulo && !mensaje) continue;
+
+      // Descartar filas duplicadas por contenido
+      const firma = titulo.toLowerCase() + ':::' + mensaje.toLowerCase();
+      if (firmasVistas.has(firma)) {
+        continue;
+      }
+      firmasVistas.add(firma);
 
       // Determinar si está activo (por defecto activo salvo que diga no, pausa, oculto, etc.)
       let activo = true;

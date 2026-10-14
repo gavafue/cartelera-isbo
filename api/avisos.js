@@ -43,6 +43,7 @@ async function obtenerDeGoogleSheets() {
     }
 
     const avisos = [];
+    const firmasVistas = new Set();
     for (let i = filaInicio; i < rows.length; i++) {
       const r = rows[i];
       if (!r || !r.c) continue;
@@ -50,6 +51,11 @@ async function obtenerDeGoogleSheets() {
       const titulo = getVal(colTitulo);
       const mensaje = getVal(colMensaje);
       if (!titulo && !mensaje) continue;
+
+      const firma = titulo.toLowerCase() + ':::' + mensaje.toLowerCase();
+      if (firmasVistas.has(firma)) continue;
+      firmasVistas.add(firma);
+
       const activoRaw = getVal(colActivo).toLowerCase();
       const activo = !['no', 'pausado', 'pausa', 'false', '0', 'inactivo', 'oculto'].includes(activoRaw);
       const catRaw = getVal(colCategoria).toLowerCase();
@@ -139,17 +145,29 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ ok: false, error: 'Formato inválido. Se esperaba un array de avisos.' });
       }
 
-      const sanitizados = lista.map((a, i) => ({
-        id: a.id || `aviso-${Date.now()}-${i}`,
-        titulo: String(a.titulo || 'Comunicado Institucional').trim().slice(0, 100),
-        prioridad: ['urgente', 'atencion', 'avisos', 'informacion', 'tramites', 'examenes'].includes(a.prioridad) ? a.prioridad : 'avisos',
-        mensaje: String(a.mensaje || '').trim().slice(0, 500),
-        tieneQr: Boolean(a.tieneQr),
-        qrUrl: a.qrUrl ? String(a.qrUrl).trim() : '',
-        qrImagen: a.qrImagen || '',
-        activo: a.activo !== false,
-        fechaCreacion: a.fechaCreacion || new Date().toISOString()
-      }));
+      const sanitizados = [];
+      const postFirmas = new Set();
+      for (let i = 0; i < lista.length; i++) {
+        const a = lista[i];
+        if (!a) continue;
+        const titulo = String(a.titulo || 'Comunicado Institucional').trim().slice(0, 100);
+        const mensaje = String(a.mensaje || '').trim().slice(0, 500);
+        const firma = titulo.toLowerCase() + ':::' + mensaje.toLowerCase();
+        if (postFirmas.has(firma)) continue;
+        postFirmas.add(firma);
+
+        sanitizados.push({
+          id: a.id || `aviso-${Date.now()}-${i}`,
+          titulo,
+          prioridad: ['urgente', 'atencion', 'avisos', 'informacion', 'tramites', 'examenes'].includes(a.prioridad) ? a.prioridad : 'avisos',
+          mensaje,
+          tieneQr: Boolean(a.tieneQr),
+          qrUrl: a.qrUrl ? String(a.qrUrl).trim() : '',
+          qrImagen: a.qrImagen || '',
+          activo: a.activo !== false,
+          fechaCreacion: a.fechaCreacion || new Date().toISOString()
+        });
+      }
 
       await guardarEnGoogleAppsScript(sanitizados);
 

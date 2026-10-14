@@ -294,17 +294,17 @@
               </div>
 
               <!-- Vista previa compacta del QR autogenerado dentro del formulario -->
-              <div id="qr-preview-box" class="hidden bg-white border-2 border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 shadow-sm">
-                <div class="flex items-center gap-3 min-w-0">
-                  <div class="h-16 w-16 bg-white rounded-lg border-2 border-slate-900 p-1 shrink-0 flex items-center justify-center overflow-hidden shadow-sm">
-                    <img id="qr-preview-img" src="" alt="Vista previa QR generado" class="w-full h-full object-contain">
+              <div id="qr-preview-box" class="hidden bg-white border-2 border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3.5 shadow-sm">
+                <div class="flex items-center gap-3.5 min-w-0">
+                  <div class="w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-xl border-2 border-slate-900 p-2 shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
+                    <img id="qr-preview-img" src="" alt="Vista previa QR generado" class="w-full h-full object-contain block" style="min-width: 80px; min-height: 80px; image-rendering: pixelated;">
                   </div>
                   <div class="min-w-0">
-                    <span class="text-xs font-black text-slate-800 block truncate">Código QR Generado con Éxito</span>
+                    <span class="text-xs sm:text-sm font-black text-slate-800 block truncate">Código QR Generado con Éxito</span>
                     <span class="text-[11px] text-emerald-600 font-bold flex items-center gap-1 mt-0.5">
                       <span class="material-symbols-outlined text-xs">check_circle</span> Listo para escaneo desde celular en TV
                     </span>
-                    <span id="qr-preview-url-text" class="text-[10px] text-sky-800 font-mono block mt-0.5 truncate font-semibold"></span>
+                    <span id="qr-preview-url-text" class="text-[10px] text-sky-800 font-mono block mt-1 truncate font-semibold bg-slate-50 px-2 py-0.5 rounded border border-slate-200"></span>
                   </div>
                 </div>
                 <button type="button" id="btn-limpiar-qr-url" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer shrink-0" title="Limpiar enlace">
@@ -408,7 +408,7 @@
   <!-- 3. MODAL INTERACTIVO DE CONFIRMACIÓN / MENSAJES INSTITUCIONALES           -->
   <!-- ========================================================================= -->
   <div id="modal-confirmacion" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4 transition-all duration-200">
-    <div class="bg-white rounded-3xl shadow-2xl border-2 border-slate-200 max-w-md w-full p-6 sm:p-7 relative transform transition-all scale-95 opacity-0 duration-200" id="modal-confirmacion-box">
+    <div class="bg-white rounded-3xl shadow-2xl border-2 border-slate-200 max-w-md w-full p-6 sm:p-7 relative transform transition-all scale-95 opacity-0 duration-200 max-h-[90vh] overflow-y-auto" id="modal-confirmacion-box">
       <!-- Icono contextual -->
       <div class="flex items-center gap-3.5 mb-4">
         <div id="modal-icono-container" class="h-12 w-12 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold shrink-0">
@@ -449,9 +449,9 @@
   <!-- 5. SCRIPTS MODULARIZADOS VANILLA                                          -->
   <!-- ========================================================================= -->
   <script src="js/qrcode.min.js"></script>
-  <script src="js/sheet.js?v=4.4"></script>
-  <script src="js/inasistencias.js?v=4.4"></script>
-  <script src="js/avisos-admin.js?v=4.4"></script>
+  <script src="js/sheet.js?v=4.5"></script>
+  <script src="js/inasistencias.js?v=4.5"></script>
+  <script src="js/avisos-admin.js?v=4.5"></script>
 
 </body>
 </html>

@@ -218,6 +218,16 @@ window.InasistenciasLogic = (function () {
     return `${diaNom} ${diaNum} de ${mesNom}`;
   }
 
+  // Formato uruguayo para encabezado dinámico de la próxima jornada: "Inasistencias · [día] [d/m]"
+  function formatearEncabezadoManana(fecha = new Date()) {
+    const d = new Date(fecha);
+    const diasMin = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const diaNom = diasMin[d.getDay()];
+    const diaNum = d.getDate();
+    const mesNum = (d.getMonth() + 1).toString().padStart(2, '0');
+    return `Inasistencias · ${diaNom} ${diaNum}/${mesNum}`;
+  }
+
   /**
    * ==========================================================================
    * 6 CATEGORÍAS EDUCATIVAS OFICIALES (Cada una con un color distintivo)
@@ -376,9 +386,10 @@ window.InasistenciasLogic = (function () {
       if (!Array.isArray(parsed) || parsed.length === 0) {
         return [];
       }
-      // Limpiar avisos obsoletos de prueba y garantizar unicidad estricta de IDs en cada elemento
+      // Limpiar avisos obsoletos de prueba y garantizar unicidad estricta (sin duplicados)
       let huboReparacion = false;
       const idsVistos = new Set();
+      const firmasVistas = new Set();
       const sanitizados = [];
 
       for (let i = 0; i < parsed.length; i++) {
@@ -389,15 +400,25 @@ window.InasistenciasLogic = (function () {
           continue;
         }
 
+        const idActual = String(a.id || '').trim();
+        const firma = ((a.titulo || '').trim().toLowerCase()) + ':::' + ((a.mensaje || '').trim().toLowerCase());
+
+        // Si el ID ya fue visto o el contenido es exactamente idéntico, descartar duplicado
+        if ((idActual && idsVistos.has(idActual)) || firmasVistas.has(firma)) {
+          huboReparacion = true;
+          continue;
+        }
+
         let item = { ...a };
-        const idActual = String(item.id || '').trim();
-        if (!idActual || idsVistos.has(idActual)) {
+        if (!idActual) {
           item.id = 'aviso-' + Date.now() + '-' + i + '-' + Math.random().toString(36).substring(2, 7);
           huboReparacion = true;
         } else {
           item.id = idActual;
         }
+
         idsVistos.add(item.id);
+        firmasVistas.add(firma);
         sanitizados.push(item);
       }
 
@@ -452,11 +473,23 @@ window.InasistenciasLogic = (function () {
           let listaLocal = [];
           try { listaLocal = JSON.parse(anteriorStr); } catch (e) { listaLocal = []; }
 
+          // Filtrar filas duplicadas que pudieran venir de Google Sheets
+          const avisosUnicosSheet = [];
+          const firmasRemotas = new Set();
+          for (const r of avisosSheet) {
+            if (!r) continue;
+            const f = ((r.titulo || '').trim().toLowerCase()) + ':::' + ((r.mensaje || '').trim().toLowerCase());
+            if (firmasRemotas.has(f)) continue;
+            firmasRemotas.add(f);
+            avisosUnicosSheet.push(r);
+          }
+
           // Reconciliar avisos de Google Sheets preservando ID y QR Base64 local si coincide
-          const avisosReconciliados = avisosSheet.map((remoto, idx) => {
+          const avisosReconciliados = avisosUnicosSheet.map((remoto) => {
             const coincidente = Array.isArray(listaLocal) ? listaLocal.find(l =>
               (l && l.id && l.id === remoto.id) ||
-              (l && l.titulo === remoto.titulo && l.mensaje === remoto.mensaje)
+              (l && (l.titulo || '').trim().toLowerCase() === (remoto.titulo || '').trim().toLowerCase() &&
+                    (l.mensaje || '').trim().toLowerCase() === (remoto.mensaje || '').trim().toLowerCase())
             ) : null;
 
             return {
@@ -528,48 +561,31 @@ window.InasistenciasLogic = (function () {
     return Boolean(obtenerTokenSesion());
   }
 
-  // Persiste la lista completa de avisos en Google Sheets (Apps Script) y en el backend en paralelo
+  // Persiste la lista completa de avisos en Google Sheets (Apps Script) exclusivamente (sin doble POST)
   async function guardarAvisosEnServidor(lista) {
     if (!verificarSesionAdmin()) {
       console.warn('Operación bloqueada: Requiere sesión administrativa activa.');
       return { ok: false, error: 'no_autorizado' };
     }
 
-    const token = obtenerTokenSesion();
+    // Deduplicación estricta por contenido y por ID antes de persistir
+    const vistos = new Set();
+    const listaLimpia = [];
+    for (const a of (lista || [])) {
+      if (!a) continue;
+      const firma = ((a.titulo || '').trim().toLowerCase()) + ':::' + ((a.mensaje || '').trim().toLowerCase());
+      if (vistos.has(firma)) continue;
+      vistos.add(firma);
+      listaLimpia.push(a);
+    }
 
-    const resultados = await Promise.allSettled([
-      // 1. Guardar en Google Sheets mediante Apps Script si está configurada la URL
-      guardarAvisosEnGoogleSheets(lista),
-      // 2. Guardar en /api/avisos si está disponible
-      (async () => {
-        try {
-          const res = await fetch('/api/avisos', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-isbo-token': token
-            },
-            body: JSON.stringify(lista)
-          });
-          if (res.ok) {
-            return await res.json();
-          }
-        } catch (e) {
-          console.warn('Advertencia al enviar avisos a /api/avisos:', e);
-        }
-        return { ok: true, local: true };
-      })()
-    ]);
-
-    const sheetsOk = resultados[0].status === 'fulfilled' && Boolean(resultados[0].value?.ok);
-    const apiOk = resultados[1].status === 'fulfilled' && (resultados[1].value?.ok !== false);
-    const exito = sheetsOk || apiOk;
-    return {
-      ok: exito,
-      sheetsOk,
-      apiOk,
-      error: !exito ? (resultados[0].value?.error || 'No se pudo conectar con Google Sheets') : null
-    };
+    try {
+      const res = await guardarAvisosEnGoogleSheets(listaLimpia);
+      return res;
+    } catch (e) {
+      console.warn('Error al guardar avisos en servidor:', e);
+      return { ok: false, error: e.message || 'Error de conexión con Google Sheets' };
+    }
   }
 
   // Guardado optimista síncrono local (0 ms de demora, actualización instantánea)
@@ -584,7 +600,7 @@ window.InasistenciasLogic = (function () {
     let avisoModificado = null;
 
     if (aviso.id) {
-      // Edición de aviso existente
+      // Edición de aviso existente por ID
       const index = lista.findIndex(a => a.id === aviso.id);
       if (index !== -1) {
         lista[index] = {
@@ -602,20 +618,40 @@ window.InasistenciasLogic = (function () {
     }
 
     if (!avisoModificado) {
-      // Creación de nuevo aviso con ID único garantizado (timestamp + random entropy)
-      const nuevo = {
-        id: 'aviso-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
-        titulo: aviso.titulo || 'Aviso Institucional',
-        prioridad: prioridadNormalizada,
-        mensaje: aviso.mensaje || '',
-        tieneQr: !!aviso.tieneQr,
-        qrUrl: aviso.qrUrl || '',
-        qrImagen: aviso.qrImagen || '',
-        activo: true,
-        fechaCreacion: new Date().toISOString()
-      };
-      lista.unshift(nuevo);
-      avisoModificado = nuevo;
+      // Verificar si ya existe un aviso con idéntico título y mensaje para evitar duplicación accidental
+      const tituloTrim = (aviso.titulo || '').trim().toLowerCase();
+      const mensajeTrim = (aviso.mensaje || '').trim().toLowerCase();
+      const indexExistente = lista.findIndex(a =>
+        (a.titulo || '').trim().toLowerCase() === tituloTrim &&
+        (a.mensaje || '').trim().toLowerCase() === mensajeTrim
+      );
+
+      if (indexExistente !== -1) {
+        lista[indexExistente] = {
+          ...lista[indexExistente],
+          prioridad: prioridadNormalizada,
+          tieneQr: !!aviso.tieneQr,
+          qrUrl: aviso.qrUrl !== undefined ? aviso.qrUrl : (lista[indexExistente].qrUrl || ''),
+          qrImagen: aviso.qrImagen !== undefined ? aviso.qrImagen : (lista[indexExistente].qrImagen || ''),
+          activo: true
+        };
+        avisoModificado = lista[indexExistente];
+      } else {
+        // Creación de nuevo aviso con ID único garantizado (timestamp + random entropy)
+        const nuevo = {
+          id: 'aviso-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
+          titulo: aviso.titulo || 'Aviso Institucional',
+          prioridad: prioridadNormalizada,
+          mensaje: aviso.mensaje || '',
+          tieneQr: !!aviso.tieneQr,
+          qrUrl: aviso.qrUrl || '',
+          qrImagen: aviso.qrImagen || '',
+          activo: true,
+          fechaCreacion: new Date().toISOString()
+        };
+        lista.unshift(nuevo);
+        avisoModificado = nuevo;
+      }
     }
 
     localStorage.setItem(STORAGE_AVISOS, JSON.stringify(lista));
@@ -749,6 +785,7 @@ window.InasistenciasLogic = (function () {
     obtenerIniciales,
     obtenerColor,
     formatearFecha,
+    formatearEncabezadoManana,
     CATEGORIAS_AVISO,
     normalizarCategoria,
     obtenerConfiguracionCategoria,

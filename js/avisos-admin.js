@@ -148,6 +148,7 @@
   let btnSubmitIcon = null;
   let btnCancelarEdicion = null;
   let btnEliminarForm = null;
+  let isSubmittingAviso = false;
 
   let modalConfirmacion = null;
   let modalConfirmacionBox = null;
@@ -308,6 +309,18 @@
   }
 
   /**
+   * Cierra de forma inmediata y segura el modal de confirmación si está abierto.
+   */
+  function cerrarModalConfirmacion() {
+    if (!modalConfirmacion || !modalConfirmacionBox) return;
+    modalConfirmacionBox.classList.remove('scale-100', 'opacity-100');
+    modalConfirmacionBox.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+      modalConfirmacion.classList.add('hidden');
+    }, 150);
+  }
+
+  /**
    * Muestra un modal de confirmación interactivo accesible y visualmente integrado.
    * Reemplaza las ventanas emergentes nativas (confirm/alert) del navegador.
    * Retorna una Promesa que resuelve en true (confirmado) o false (cancelado).
@@ -377,43 +390,55 @@
       const finalizar = (resultado) => {
         if (resuelto) return;
         resuelto = true;
+        limpiarListeners();
         modalConfirmacionBox.classList.remove('scale-100', 'opacity-100');
         modalConfirmacionBox.classList.add('scale-95', 'opacity-0');
         setTimeout(() => {
           modalConfirmacion.classList.add('hidden');
-          limpiarListeners();
           resolve(resultado);
         }, 150);
       };
 
       const onConfirmar = () => {
         if (resuelto) return;
-        resuelto = true;
-        limpiarListeners();
         if (esAlertaSimple) {
           finalizar(true);
         } else {
+          resuelto = true;
+          limpiarListeners();
           mostrarModalEstadoCargando();
           resolve(true);
         }
       };
 
       const onCancelar = () => finalizar(false);
-      // Evitar que hacer clic fuera del modal o presionar Escape lo cierre:
-      // Solo se puede cerrar interactuando con los botones explícitos de Aceptar / Cancelar
+
+      // Accesibilidad: Tecla Escape para cancelar o cerrar
+      const onKeyDown = (e) => {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+          e.preventDefault();
+          finalizar(esAlertaSimple ? true : false);
+        }
+      };
+
+      // Clic fuera del contenido (en el fondo oscuro/backdrop)
       const onBackdrop = (e) => {
-        e.stopPropagation();
+        if (e.target === modalConfirmacion) {
+          finalizar(esAlertaSimple ? true : false);
+        }
       };
 
       const limpiarListeners = () => {
         if (modalBtnConfirmar) modalBtnConfirmar.removeEventListener('click', onConfirmar);
         if (modalBtnCancelar) modalBtnCancelar.removeEventListener('click', onCancelar);
-        modalConfirmacion.removeEventListener('click', onBackdrop);
+        if (modalConfirmacion) modalConfirmacion.removeEventListener('click', onBackdrop);
+        document.removeEventListener('keydown', onKeyDown);
       };
 
       if (modalBtnConfirmar) modalBtnConfirmar.addEventListener('click', onConfirmar);
       if (modalBtnCancelar) modalBtnCancelar.addEventListener('click', onCancelar);
-      modalConfirmacion.addEventListener('click', onBackdrop);
+      if (modalConfirmacion) modalConfirmacion.addEventListener('click', onBackdrop);
+      document.addEventListener('keydown', onKeyDown);
 
       modalConfirmacion.classList.remove('hidden');
       requestAnimationFrame(() => {
@@ -465,7 +490,7 @@
    * Esto garantiza máxima legibilidad cuando los estudiantes apuntan con sus teléfonos
    * móviles a la pantalla de televisión desde varios metros de distancia.
    */
-  function generarQRDataURL(url, dimension = 300) {
+  function generarQRDataURL(url, dimension = 350) {
     return new Promise((resolve) => {
       if (!url || !url.trim()) {
         resolve('');
@@ -545,19 +570,19 @@
     if (tieneQr) {
       if (imagenQRActual) {
         htmlQR = `
-          <div class="mt-4 p-3.5 bg-white text-slate-900 border-2 border-slate-900 rounded-2xl flex items-center gap-3.5 sm:gap-4 shadow-md">
-            <div class="w-20 h-20 sm:w-24 sm:h-24 bg-white p-1 rounded-xl border-2 border-slate-900 shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
-              <img src="${imagenQRActual}" alt="Código QR institucional" class="w-full h-full object-contain">
+          <div class="mt-4 p-3.5 bg-white text-slate-900 border-2 border-slate-900 rounded-2xl flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4 shadow-md">
+            <div class="w-36 h-36 sm:w-44 sm:h-44 bg-white p-2.5 rounded-xl border-2 border-slate-900 shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
+              <img src="${imagenQRActual}" alt="Código QR institucional" class="w-full h-full object-contain block" style="min-width: 140px; min-height: 140px; image-rendering: pixelated;">
             </div>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-1 text-xs font-black uppercase text-slate-900 tracking-wide">
+            <div class="min-w-0 flex-1 text-center sm:text-left">
+              <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 text-xs font-black uppercase tracking-wider mb-1">
                 <span class="material-symbols-outlined text-sm text-sky-700">qr_code_scanner</span>
                 <span>Escaneá con tu celular</span>
               </div>
-              <p class="text-[11px] text-slate-600 font-medium leading-snug mt-1">Apunta con la cámara de tu móvil hacia la pantalla TV para acceder al enlace.</p>
+              <p class="text-xs text-slate-700 font-semibold leading-snug">Apunta con la cámara de tu móvil hacia la pantalla TV para acceder al enlace.</p>
               ${urlQRActual ? `
-                <div class="mt-1.5 px-2 py-0.5 rounded bg-slate-100 text-[10px] font-mono font-bold text-sky-800 truncate border border-slate-200">
-                  ${urlQRActual}
+                <div class="mt-2 px-2.5 py-1 rounded bg-slate-100 text-xs font-mono font-bold text-sky-900 truncate border border-slate-300">
+                  🔗 ${urlQRActual}
                 </div>
               ` : ''}
             </div>
@@ -1377,10 +1402,17 @@
       });
     }
 
-    // 7. Envío del Formulario con Actualización Optimista Inmediata (0 ms) y Confirmación Explícita
+    // 7. Envío del Formulario con Actualización Optimista Inmediata (0 ms), Idempotencia y Confirmación Explícita
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        if (isSubmittingAviso) return;
+        isSubmittingAviso = true;
+        if (btnSubmitAviso) {
+          btnSubmitAviso.disabled = true;
+          btnSubmitAviso.classList.add('opacity-75', 'cursor-not-allowed');
+        }
 
         const id = inputAvisoId.value.trim() || undefined;
         const titulo = inputTitulo.value.trim();
@@ -1389,7 +1421,16 @@
         const tieneQr = inputToggleQr.checked;
         const urlIngresada = inputQrUrl.value.trim();
 
+        const restaurarEstadoSubmit = () => {
+          isSubmittingAviso = false;
+          if (btnSubmitAviso) {
+            btnSubmitAviso.disabled = false;
+            btnSubmitAviso.classList.remove('opacity-75', 'cursor-not-allowed');
+          }
+        };
+
         if (!titulo || !mensaje) {
+          restaurarEstadoSubmit();
           await mostrarModalAlerta({
             titulo: 'Campos Incompletos',
             mensaje: 'Por favor completa el título y el mensaje del comunicado antes de publicar.',
@@ -1401,6 +1442,7 @@
         }
 
         if (tieneQr && !urlIngresada) {
+          restaurarEstadoSubmit();
           await mostrarModalAlerta({
             titulo: 'Falta Enlace de Código QR',
             mensaje: 'Has marcado la opción de incluir código QR. Por favor escribe el enlace web de destino o desmarca la casilla del código QR.',
@@ -1425,75 +1467,80 @@
         });
 
         if (!confirmado) {
+          restaurarEstadoSubmit();
           return;
         }
 
-        // Si tiene QR y aún no se generó o cambió la URL, generarlo ahora mismo
-        let qrDataUrl = imagenQRActual;
-        if (tieneQr && (!qrDataUrl || urlQRActual !== urlIngresada)) {
-          qrDataUrl = await generarQRDataURL(urlIngresada);
-        }
-
-        // 1. Guardar de inmediato localmente (Optimistic UI - 0 ms de demora)
-        const resultadoLocal = InasistenciasLogic.guardarAvisoLocal({
-          id,
-          titulo,
-          mensaje,
-          prioridad,
-          tieneQr,
-          qrUrl: tieneQr ? urlIngresada : '',
-          qrImagen: tieneQr ? qrDataUrl : ''
-        });
-
-        if (!resultadoLocal) {
-          await mostrarModalAlerta({
-            titulo: 'Error de Autenticación',
-            mensaje: 'La sesión administrativa ha caducado o no es válida. Por favor inicia sesión nuevamente.',
-            tipo: 'peligro',
-            icono: 'lock_person',
-            textoBoton: 'Entendido'
-          });
-          return;
-        }
-
-        // 2. Inmediatamente limpiar formulario y renderizar en pantalla (0 ms)
-        cancelarEdicion();
-        renderAvisosActivos();
-        actualizarVistaPrevia();
-        mostrarToast(esEdicion ? 'Guardando cambios del comunicado...' : 'Publicando comunicado en cartelera...', 'info');
-
-        // 3. Sincronización en segundo plano con Google Sheets
-        let errorSync = null;
         try {
-          const resSync = await InasistenciasLogic.guardarAvisosEnServidor(resultadoLocal.lista);
-          if (resSync && resSync.ok === false) {
-            errorSync = resSync.error || 'No se pudo conectar con Google Sheets';
+          // Si tiene QR y aún no se generó o cambió la URL, generarlo ahora mismo
+          let qrDataUrl = imagenQRActual;
+          if (tieneQr && (!qrDataUrl || urlQRActual !== urlIngresada)) {
+            qrDataUrl = await generarQRDataURL(urlIngresada);
           }
-        } catch (errSync) {
-          console.warn('Error sincronizando con Google Sheets en segundo plano:', errSync);
-          errorSync = errSync.message || 'Error de conexión con Google Sheets';
-        }
 
-        if (errorSync) {
-          await mostrarModalAlerta({
-            titulo: 'Guardado con Advertencia',
-            mensaje: `El aviso <strong>"${titulo}"</strong> se guardó en este dispositivo, pero falló la sincronización con Google Sheets: ${errorSync}. Se reintentará automáticamente.`,
-            tipo: 'advertencia',
-            icono: 'warning',
-            textoBoton: 'Entendido'
+          // 1. Guardar de inmediato localmente (Optimistic UI - 0 ms de demora)
+          const resultadoLocal = InasistenciasLogic.guardarAvisoLocal({
+            id,
+            titulo,
+            mensaje,
+            prioridad,
+            tieneQr,
+            qrUrl: tieneQr ? urlIngresada : '',
+            qrImagen: tieneQr ? qrDataUrl : ''
           });
-        } else {
-          const textoExito = esEdicion
-            ? `El aviso <strong>"${titulo}"</strong> ha sido modificado y sincronizado correctamente con la Pantalla TV y la planilla Google Sheets.`
-            : `El aviso <strong>"${titulo}"</strong> fue publicado con éxito en la Pantalla TV y sincronizado en la planilla Google Sheets.`;
 
-          await mostrarModalAlerta({
-            titulo: esEdicion ? '¡Aviso Modificado!' : '¡Aviso Publicado con Éxito!',
-            mensaje: textoExito,
-            tipo: 'exito',
-            icono: 'verified',
-            textoBoton: 'Aceptar'
-          });
+          if (!resultadoLocal) {
+            await mostrarModalAlerta({
+              titulo: 'Error de Autenticación',
+              mensaje: 'La sesión administrativa ha caducado o no es válida. Por favor inicia sesión nuevamente.',
+              tipo: 'peligro',
+              icono: 'lock_person',
+              textoBoton: 'Entendido'
+            });
+            return;
+          }
+
+          // 2. Inmediatamente limpiar formulario y renderizar en pantalla (0 ms)
+          cancelarEdicion();
+          renderAvisosActivos();
+          actualizarVistaPrevia();
+          mostrarToast(esEdicion ? 'Guardando cambios del comunicado...' : 'Publicando comunicado en cartelera...', 'info');
+
+          // 3. Sincronización en segundo plano con Google Sheets
+          let errorSync = null;
+          try {
+            const resSync = await InasistenciasLogic.guardarAvisosEnServidor(resultadoLocal.lista);
+            if (resSync && resSync.ok === false) {
+              errorSync = resSync.error || 'No se pudo conectar con Google Sheets';
+            }
+          } catch (errSync) {
+            console.warn('Error sincronizando con Google Sheets en segundo plano:', errSync);
+            errorSync = errSync.message || 'Error de conexión con Google Sheets';
+          }
+
+          if (errorSync) {
+            await mostrarModalAlerta({
+              titulo: 'Guardado con Advertencia',
+              mensaje: `El aviso <strong>"${titulo}"</strong> se guardó en este dispositivo, pero falló la sincronización con Google Sheets: ${errorSync}. Se reintentará automáticamente.`,
+              tipo: 'advertencia',
+              icono: 'warning',
+              textoBoton: 'Entendido'
+            });
+          } else {
+            const textoExito = esEdicion
+              ? `El aviso <strong>"${titulo}"</strong> ha sido modificado y sincronizado correctamente con la Pantalla TV y la planilla Google Sheets.`
+              : `El aviso <strong>"${titulo}"</strong> fue publicado con éxito en la Pantalla TV y sincronizado en la planilla Google Sheets.`;
+
+            await mostrarModalAlerta({
+              titulo: esEdicion ? '¡Aviso Modificado!' : '¡Aviso Publicado con Éxito!',
+              mensaje: textoExito,
+              tipo: 'exito',
+              icono: 'verified',
+              textoBoton: 'Aceptar'
+            });
+          }
+        } finally {
+          restaurarEstadoSubmit();
         }
       });
     }

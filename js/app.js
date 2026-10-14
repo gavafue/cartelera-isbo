@@ -101,17 +101,18 @@
     // 1. Iniciar reloj digital en tiempo real y fecha oficial
     UI.iniciarReloj('reloj-hora', 'reloj-fecha');
 
-    // 2. Control de pantalla completa (F11 / botón)
+    // 2. Control de pantalla completa (F11 / botones)
+    const toggleFullscreen = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        document.exitFullscreen().catch(err => console.log(err));
+      }
+    };
     const btnFullscreen = document.getElementById('btn-fullscreen');
-    if (btnFullscreen) {
-      btnFullscreen.addEventListener('click', () => {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(err => console.log(err));
-        } else {
-          document.exitFullscreen().catch(err => console.log(err));
-        }
-      });
-    }
+    if (btnFullscreen) btnFullscreen.addEventListener('click', toggleFullscreen);
+    const btnFullscreenMobile = document.getElementById('btn-fullscreen-mobile');
+    if (btnFullscreenMobile) btnFullscreenMobile.addEventListener('click', toggleFullscreen);
 
     // 3. Escuchar en tiempo real cambios de avisos desde el formulario (avisos.html)
     // Sincronización instantánea de 0 ms entre pestañas

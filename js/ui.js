@@ -138,6 +138,10 @@ window.UI = (function () {
 
   // Renderiza las tarjetas de docentes ausentes de MAÑANA
   function renderDocentesDeManana(contenedorId, docentes, fechaManana) {
+    const elTitulo = document.getElementById('titulo-header-manana');
+    if (elTitulo && InasistenciasLogic.formatearEncabezadoManana) {
+      elTitulo.textContent = InasistenciasLogic.formatearEncabezadoManana(fechaManana);
+    }
     const elFecha = document.getElementById('fecha-manana');
     if (elFecha) {
       elFecha.textContent = InasistenciasLogic.formatearFecha(fechaManana);
@@ -161,8 +165,8 @@ window.UI = (function () {
         const tempDiv = document.createElement('div');
         new QRCode(tempDiv, {
           text: a.qrUrl,
-          width: 256,
-          height: 256,
+          width: 320,
+          height: 320,
           colorDark: '#000000',
           colorLight: '#ffffff',
           correctLevel: QRCode.CorrectLevel.H
@@ -176,7 +180,7 @@ window.UI = (function () {
       } catch (e) {}
     }
 
-    const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(a.qrUrl)}`;
+    const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(a.qrUrl)}`;
     qrCacheOffline.set(a.qrUrl, fallback);
     return fallback;
   }
@@ -200,9 +204,9 @@ window.UI = (function () {
       const imgQR = tieneQR ? resolverImagenQR(a) : '';
 
       listaTarjetas.push(`
-        <div class="${config.cardBg} rounded-xl p-3 sm:p-3.5 shadow-xs relative overflow-hidden flex flex-col justify-between border border-white/20">
+        <div class="${config.cardBg} rounded-xl p-3.5 sm:p-4 shadow-sm relative overflow-hidden flex flex-col justify-between border border-white/20">
           <div>
-            <div class="flex items-center justify-between gap-2 mb-1.5">
+            <div class="flex items-center justify-between gap-2 mb-2">
               <span class="inline-flex items-center gap-1 ${config.colorBadge} text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
                 ${config.badgeTexto}
               </span>
@@ -212,26 +216,26 @@ window.UI = (function () {
                 </span>
               ` : ''}
             </div>
-            <h3 class="text-xs sm:text-sm lg:text-base font-extrabold leading-snug ${config.tituloCol}">${a.titulo}</h3>
-            <p class="text-xs ${config.mensajeCol} font-medium mt-1 leading-relaxed">${a.mensaje}</p>
+            <h3 class="text-sm sm:text-base lg:text-lg font-black leading-snug ${config.tituloCol}">${a.titulo}</h3>
+            <p class="text-xs sm:text-sm ${config.mensajeCol} font-medium mt-1.5 leading-relaxed">${a.mensaje}</p>
           </div>
 
           ${tieneQR ? `
-            <div class="mt-2.5 p-2 bg-white text-slate-900 rounded-xl flex items-center gap-2.5 shadow-sm border border-slate-300">
-              <div class="w-14 h-14 sm:w-16 sm:h-16 bg-white p-1 rounded-lg border-2 border-slate-900 shrink-0 flex items-center justify-center overflow-hidden">
-                <img src="${imgQR}" alt="Código QR institucional" class="w-full h-full object-contain">
+            <div class="mt-3 p-3 bg-white text-slate-900 rounded-xl flex flex-col items-center gap-2.5 shadow-md border-2 border-slate-900 text-center">
+              <div class="w-36 h-36 sm:w-40 sm:h-40 bg-white p-2 rounded-xl border-2 border-slate-900 shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
+                <img src="${imgQR}" alt="Código QR institucional" class="w-full h-full object-contain block" style="min-width: 140px; min-height: 140px; image-rendering: pixelated;">
               </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1 text-[10px] font-black uppercase text-slate-900 tracking-wide">
+              <div class="w-full">
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-sky-100 text-sky-900 text-[11px] font-black uppercase tracking-wider mb-1">
                   <span class="material-symbols-outlined text-xs text-sky-700">qr_code_scanner</span>
                   <span>Escaneá con tu celular</span>
                 </div>
-                <p class="text-[9px] text-slate-600 font-medium leading-tight mt-0.5 truncate">
-                  Apunta la cámara para acceder
+                <p class="text-[11px] text-slate-700 font-semibold leading-snug">
+                  Apunta con la cámara de tu teléfono móvil hacia la pantalla.
                 </p>
                 ${a.qrUrl ? `
-                  <div class="mt-1 px-1.5 py-0.5 rounded bg-slate-100 text-[9px] font-mono font-bold text-sky-800 truncate border border-slate-200">
-                    ${a.qrUrl}
+                  <div class="mt-1.5 px-2 py-0.5 rounded-lg bg-slate-100 text-[10px] font-mono font-bold text-sky-900 truncate border border-slate-300 max-w-full">
+                    🔗 ${a.qrUrl}
                   </div>
                 ` : ''}
               </div>
