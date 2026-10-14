@@ -56,3 +56,18 @@ input, textarea, select {
 .pulse-radar {
   animation: pulse-radar 2s infinite;
 }
+
+/* Grilla adaptable de 2 columnas para distribución en pantalla completa / ancha */
+.grid-tarjetas-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+/* Transiciones fluidas en columnas al redimensionar dinámicamente */
+#columna-hoy,
+#columna-manana,
+#columna-avisos {
+  transition: flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+

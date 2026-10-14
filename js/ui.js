@@ -79,13 +79,30 @@ window.UI = (function () {
     // Nivel 1: Avatar + Nombre Completo (sin truncate, break-words) + Estado
     // Nivel 2: Chips de grupos afectados con divisor sutil
     const hoverBorder = opciones.hoverBorder || 'hover:border-sky-400';
+    const cardClase = opciones.cardClase || 'border-2 border-slate-200/90';
+    const badgeTemporal = opciones.badgeTemporal || null;
+
+    // Evitar reinicio brusco de animación si la lista de docentes no cambió
+    const cacheKey = `${opciones.tipo || ''}_${docentes.map(d => `${d.nombre}_${d.desde}_${d.hasta}_${d.grupo}`).join('|')}`;
+    if (contenedor.dataset.cacheKey === cacheKey && contenedor.children.length > 0) {
+      return;
+    }
+    contenedor.dataset.cacheKey = cacheKey;
+
     const tarjetasHtml = docentes.map(d => {
       const iniciales = InasistenciasLogic.obtenerIniciales(d.nombre);
       const color = InasistenciasLogic.obtenerColor(d.nombre);
       const estado = InasistenciasLogic.calcularEstado(d, fecha);
 
+      const badgeTemporalHtml = badgeTemporal ? `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${badgeTemporal.clase}">
+          <span class="material-symbols-outlined text-[12px] sm:text-[13px] leading-none">${badgeTemporal.icono}</span>
+          <span>${badgeTemporal.texto}</span>
+        </span>
+      ` : '';
+
       return `
-        <div class="bg-white rounded-xl p-2.5 sm:p-3 lg:p-3.5 border-2 border-slate-200/90 shadow-xs flex flex-col gap-2 ${hoverBorder} transition-colors">
+        <div class="bg-white rounded-xl p-2.5 sm:p-3 lg:p-3.5 border-2 border-slate-200/90 shadow-xs flex flex-col gap-2 ${cardClase} ${hoverBorder} transition-colors">
           <!-- Nivel 1: Docente y Estado -->
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
@@ -99,7 +116,8 @@ window.UI = (function () {
                 <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Docente</span>
               </div>
             </div>
-            <div class="shrink-0 text-right">
+            <div class="shrink-0 ${badgeTemporal ? 'flex flex-col items-end gap-1' : 'text-right'}">
+              ${badgeTemporalHtml}
               <span class="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border shadow-xs inline-block whitespace-nowrap ${estado.clase}">
                 ${estado.texto}
               </span>
@@ -117,12 +135,24 @@ window.UI = (function () {
       `;
     }).join('');
 
-    // Si hay 4 o más docentes en TV/Desktop, activar marquesina continua para visualización completa
+    // Comprobar si la columna es ancha (>= 720px en TV/Desktop) y hay al menos 4 docentes para aprovechar grilla de 2 columnas
+    const columnaPadre = contenedor.closest('section');
+    const esColumnaAncha = window.innerWidth >= 1024 && columnaPadre && columnaPadre.offsetWidth >= 720 && docentes.length >= 4;
+    const claseBase = esColumnaAncha ? 'grid-tarjetas-2col' : 'space-y-2.5';
+
+    // Limpiar estilos inline previos de animación
+    contenedor.style.animation = '';
+    contenedor.style.animationDuration = '';
+
+    // Si hay 4 o más docentes, activar marquesina continua para visualización completa
     if (docentes.length >= 4) {
-      contenedor.className = 'animate-marquee-v space-y-2.5';
-      contenedor.innerHTML = tarjetasHtml + `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2"></div>` + tarjetasHtml;
+      const separador = `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2 ${esColumnaAncha ? 'col-span-2' : ''}"></div>`;
+      contenedor.className = `animate-marquee-v ${claseBase}`;
+      contenedor.innerHTML = tarjetasHtml + separador + tarjetasHtml;
+      const duracion = Math.max(24, Math.round(docentes.length * 6));
+      contenedor.style.animationDuration = `${duracion}s`;
     } else {
-      contenedor.className = 'space-y-2.5';
+      contenedor.className = claseBase;
       contenedor.innerHTML = tarjetasHtml;
     }
   }
@@ -130,9 +160,12 @@ window.UI = (function () {
   // Renderiza las tarjetas de docentes ausentes de HOY
   function renderDocentesDeHoy(contenedorId, docentes, fechaHoy = new Date()) {
     renderDocentes(contenedorId, 'contador-docentes', docentes, fechaHoy, {
+      tipo: 'hoy',
+      cardClase: 'border-l-[6px] border-l-red-600 bg-gradient-to-r from-rose-50/40 via-white to-white',
+      hoverBorder: 'hover:border-rose-400',
+      badgeTemporal: null,
       tituloVacio: 'Sin inasistencias docentes para hoy',
-      descVacio: 'Todo el cuerpo docente asiste con normalidad. Las clases de todos los grupos y turnos se imparten en sus horarios y aulas correspondientes.',
-      hoverBorder: 'hover:border-rose-400'
+      descVacio: 'Todo el cuerpo docente asiste con normalidad. Las clases de todos los grupos y turnos se imparten en sus horarios y aulas correspondientes.'
     });
   }
 
@@ -147,9 +180,16 @@ window.UI = (function () {
       elFecha.textContent = InasistenciasLogic.formatearFecha(fechaManana);
     }
     renderDocentes(contenedorId, 'contador-docentes-manana', docentes, fechaManana, {
+      tipo: 'manana',
+      cardClase: 'border-l-[6px] border-l-indigo-600 bg-gradient-to-r from-indigo-50/40 via-white to-white',
+      hoverBorder: 'hover:border-indigo-400',
+      badgeTemporal: {
+        texto: 'MAÑANA',
+        icono: 'event',
+        clase: 'bg-indigo-700 text-white shadow-xs'
+      },
       tituloVacio: 'Sin inasistencias docentes para mañana',
-      descVacio: 'No se registran inasistencias de docentes previstas para la jornada de mañana.',
-      hoverBorder: 'hover:border-indigo-400'
+      descVacio: 'No se registran inasistencias de docentes previstas para la jornada de mañana.'
     });
   }
 
@@ -185,12 +225,12 @@ window.UI = (function () {
     return fallback;
   }
 
-  // Renderiza los avisos institucionales en formato cápsula o feed (EXCLUSIVAMENTE desde el formulario)
-  function renderAvisosConMarquee(contenedorId) {
+  // Renderiza los avisos institucionales en formato cápsula o feed (desde el formulario o lista explícita)
+  function renderAvisosConMarquee(contenedorId, avisosExplicitos = null) {
     const contenedor = document.getElementById(contenedorId);
     if (!contenedor) return;
 
-    const avisosGuardados = InasistenciasLogic.obtenerAvisosGuardados();
+    const avisosGuardados = Array.isArray(avisosExplicitos) ? avisosExplicitos : InasistenciasLogic.obtenerAvisosGuardados();
     const avisosActivos = avisosGuardados.filter(a => a.activo !== false);
 
     const contador = document.getElementById('contador-avisos');
@@ -258,6 +298,17 @@ window.UI = (function () {
       return;
     }
 
+    // Evitar reinicio brusco de la animación si los avisos no cambiaron
+    const cacheKeyAvisos = avisosActivos.map(a => `${a.id || a.titulo}_${a.mensaje}_${a.prioridad}_${a.tieneQr}`).join('|');
+    if (contenedor.dataset.cacheKey === cacheKeyAvisos && contenedor.children.length > 0) {
+      return;
+    }
+    contenedor.dataset.cacheKey = cacheKeyAvisos;
+
+    // Limpiar estilos inline previos de animación
+    contenedor.style.animation = '';
+    contenedor.style.animationDuration = '';
+
     // Si hay 2 o más avisos, activar marquesina vertical continua para visualización rotativa
     const totalHtml = listaTarjetas.join('');
     if (listaTarjetas.length >= 2) {
@@ -268,14 +319,16 @@ window.UI = (function () {
         ? totalHtml + separador + totalHtml
         : totalHtml;
       contenedor.innerHTML = bloque + separador + bloque;
+      const duracion = Math.max(22, Math.round(listaTarjetas.length * 12));
+      contenedor.style.animationDuration = `${duracion}s`;
     } else {
       contenedor.className = 'space-y-2.5';
       contenedor.innerHTML = totalHtml;
     }
   }
 
-  // Ajusta las proporciones y visibilidad dinámica de las 3 columnas respetando pantallas
-  function ajustarLayout(nHoy, nManana, nAvisos) {
+  // Ajusta las proporciones y visibilidad dinámica de las 3 columnas según densidad de información
+  function ajustarLayout(nHoy, nManana, nAvisos, opciones = {}) {
     ultimosConteos = { nHoy, nManana, nAvisos };
 
     const colHoy = document.getElementById('columna-hoy');
@@ -283,10 +336,16 @@ window.UI = (function () {
     const colAvisos = document.getElementById('columna-avisos');
     if (!colHoy) return;
 
+    // 1. REGLA ESTRICTA DE DISPONIBILIDAD INSTITUCIONAL:
+    // - Columna Hoy: SIEMPRE ACTIVA (nunca se oculta, ni siquiera con 0 inasistencias).
+    // - Columna Mañana: AUTO-OCULTABLE (se oculta si no hay inasistencias para mañana).
+    // - Columna Avisos: AUTO-OCULTABLE (se oculta si no hay avisos activos vigentes).
     const tieneManana = nManana > 0;
     const tieneAvisos = nAvisos > 0;
 
-    // 1. Visibilidad de columna Mañana
+    colHoy.style.display = 'flex';
+    colHoy.classList.remove('hidden');
+
     if (colManana) {
       if (!tieneManana) {
         colManana.style.display = 'none';
@@ -297,7 +356,6 @@ window.UI = (function () {
       }
     }
 
-    // 2. Visibilidad de columna Avisos
     if (colAvisos) {
       if (!tieneAvisos) {
         colAvisos.style.display = 'none';
@@ -308,7 +366,7 @@ window.UI = (function () {
       }
     }
 
-    // 3. Comportamiento Responsive (Móvil / Tablet < 1024px vs TV / Desktop >= 1024px)
+    // 2. Comportamiento Responsive (Móvil / Tablet < 1024px vs TV / Desktop >= 1024px)
     const esPantallaGrande = window.innerWidth >= 1024;
     if (!esPantallaGrande) {
       colHoy.style.flex = 'none';
@@ -324,51 +382,91 @@ window.UI = (function () {
       return;
     }
 
-    // En pantallas grandes (TV 32", TV 1080p, escritorio): limpiar width inline y aplicar proporciones flex
+    // Limpiar widths inline en pantallas grandes para delegar en flex-grow/basis
     colHoy.style.width = '';
     if (colManana) colManana.style.width = '';
     if (colAvisos) colAvisos.style.width = '';
 
-    // 4. Determinación de proporciones en TV/Desktop:
-    // "Si mañana suele tener casi la misma cantidad de inasistencias que hoy:
-    //  38% (Hoy) | 38% (Mañana) | 24% (Avisos Bedelía comprimidos en formato cápsula o feed).
-    //  Si casi no hay avisos de mañana (1 o ninguno la mayoría de los días):
-    //  50% (Hoy) | 25% (Mañana) | 25% (Avisos Bedelía)."
-    const esMananaSimilar = tieneManana && (
-      (nManana >= 3 && nManana >= Math.max(1, nHoy) * 0.6) ||
-      (nManana >= 2 && Math.abs(nHoy - nManana) <= 1)
-    );
-
-    if (tieneManana && tieneAvisos) {
-      if (esMananaSimilar) {
-        // 38% (Hoy) | 38% (Mañana) | 24% (Avisos Bedelía)
-        colHoy.style.flex = '38 38 0%';
-        colManana.style.flex = '38 38 0%';
-        colAvisos.style.flex = '24 24 0%';
-      } else {
-        // 50% (Hoy) | 25% (Mañana) | 25% (Avisos Bedelía)
-        colHoy.style.flex = '50 50 0%';
-        colManana.style.flex = '25 25 0%';
-        colAvisos.style.flex = '25 25 0%';
-      }
-    } else if (!tieneManana && tieneAvisos) {
-      // Si mañana no hay inasistencias, esa columna se oculta y Hoy ocupa su lugar:
-      // 75% Hoy | 25% Avisos
-      colHoy.style.flex = '75 75 0%';
-      colAvisos.style.flex = '25 25 0%';
-    } else if (tieneManana && !tieneAvisos) {
-      // Si no hay avisos, avisos se oculta y Hoy ocupa el espacio libre restante
-      if (esMananaSimilar) {
-        colHoy.style.flex = '50 50 0%';
-        colManana.style.flex = '50 50 0%';
-      } else {
-        colHoy.style.flex = '75 75 0%';
-        colManana.style.flex = '25 25 0%';
-      }
-    } else {
-      // Ambas ocultas (sin mañana y sin avisos): Hoy ocupa el 100%
-      colHoy.style.flex = '100 100 0%';
+    // 3. MOTOR DE DENSIDAD DE INFORMACIÓN (DDE):
+    // Ponderación de pesos visuales y cognitivos:
+    // - Cada tarjeta de docente: peso base 1.0.
+    // - Hoy sin ausencias: peso mínimo de anclaje (0.9).
+    // - Avisos con QR: peso 2.5 (por canvas de alta resolución y necesidad de escaneo móvil a distancia).
+    // - Avisos sin QR: peso 1.3.
+    let nAvisosConQr = 0;
+    try {
+      const avisosList = opciones.avisosActivos || (typeof InasistenciasLogic !== 'undefined' ? InasistenciasLogic.obtenerAvisosGuardados().filter(a => a.activo !== false) : []);
+      nAvisosConQr = avisosList.filter(a => a.tieneQr && (a.qrImagen || a.qrUrl)).length;
+    } catch (e) {
+      nAvisosConQr = 0;
     }
+
+    const dHoy = nHoy > 0 ? Math.max(1, nHoy) : 0.9;
+    const dManana = tieneManana ? Math.max(1, nManana) : 0;
+    const dAvisos = tieneAvisos ? ((nAvisos - nAvisosConQr) * 1.3 + nAvisosConQr * 2.5) : 0;
+
+    // CASO 1: Solo 1 Columna activa (Hoy ocupa el 100% de la pantalla)
+    if (!tieneManana && !tieneAvisos) {
+      colHoy.style.flex = '100 100 0%';
+      return;
+    }
+
+    // CASO 2: 2 Columnas activas (Hoy + Mañana, sin Avisos)
+    // Invariante estricto: Hoy SIEMPRE ha de ser más grande que Mañana (pctHoy > pctManana).
+    if (tieneManana && !tieneAvisos) {
+      const ratio = dHoy / (dHoy + dManana);
+      // Rango de Hoy: desde 55% (cuando Hoy tiene pocos/cero y Mañana muchos) hasta 72% (cuando Hoy tiene alta densidad)
+      let hoyPct = Math.round(55 + (ratio * 17));
+      hoyPct = Math.max(55, Math.min(72, hoyPct));
+      const mananaPct = 100 - hoyPct;
+
+      colHoy.style.flex = `${hoyPct} ${hoyPct} 0%`;
+      colManana.style.flex = `${mananaPct} ${mananaPct} 0%`;
+      return;
+    }
+
+    // CASO 3: 2 Columnas activas (Hoy + Avisos, sin Mañana)
+    if (!tieneManana && tieneAvisos) {
+      if (nHoy === 0) {
+        // Hoy vacío: banner a la izquierda (34%), avisos expandidos (66%)
+        colHoy.style.flex = '34 34 0%';
+        colAvisos.style.flex = '66 66 0%';
+      } else {
+        const ratio = dHoy / (dHoy + dAvisos);
+        const hoyPct = Math.round(Math.min(72, Math.max(38, ratio * 100)));
+        const avisosPct = 100 - hoyPct;
+        colHoy.style.flex = `${hoyPct} ${hoyPct} 0%`;
+        colAvisos.style.flex = `${avisosPct} ${avisosPct} 0%`;
+      }
+      return;
+    }
+
+    // CASO 4: Las 3 Columnas activas (Hoy + Mañana + Avisos)
+    // Invariante estricto: Hoy SIEMPRE ha de ser más grande que Mañana (pctHoy > pctManana),
+    // respetando a su vez la variación según la densidad de datos.
+    const dTotal = dHoy + dManana + dAvisos;
+    const minAvisos = nAvisosConQr > 0 ? 25 : 20;
+    const maxAvisos = 34;
+    let pctAvisos = Math.round((dAvisos / dTotal) * 100);
+    pctAvisos = Math.max(minAvisos, Math.min(maxAvisos, pctAvisos));
+
+    const espacioRestante = 100 - pctAvisos;
+    const ratioHM = dHoy / (dHoy + dManana);
+
+    // Hoy recibe entre el 55% y el 72% del espacio disponible restante
+    const shareHoy = 0.55 + (ratioHM * 0.17);
+    let pctHoy = Math.round(espacioRestante * shareHoy);
+    let pctManana = espacioRestante - pctHoy;
+
+    // Salvaguarda matemática estricta: garantizar que pctHoy sea al menos 4 puntos mayor que pctManana
+    if (pctHoy <= pctManana) {
+      pctHoy = Math.ceil(espacioRestante / 2) + 2;
+      pctManana = espacioRestante - pctHoy;
+    }
+
+    colHoy.style.flex = `${pctHoy} ${pctHoy} 0%`;
+    colManana.style.flex = `${pctManana} ${pctManana} 0%`;
+    colAvisos.style.flex = `${pctAvisos} ${pctAvisos} 0%`;
   }
 
   // Listener global de resize para recalcular layout al rotar pantalla o cambiar tamaño de ventana

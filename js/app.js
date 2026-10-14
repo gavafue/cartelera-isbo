@@ -59,8 +59,8 @@
     const avisosGuardados = InasistenciasLogic.obtenerAvisosGuardados();
     const avisosActivos = avisosGuardados.filter(a => a.activo !== false);
 
-    // 3. Ajustar proporciones y visibilidad dinámica de 3 columnas
-    UI.ajustarLayout(ausentesHoy.length, ausentesManana.length, avisosActivos.length);
+    // 3. Ajustar proporciones y visibilidad dinámica de 3 columnas según densidad de información
+    UI.ajustarLayout(ausentesHoy.length, ausentesManana.length, avisosActivos.length, { avisosActivos });
 
     // 4. Renderizar listas
     UI.renderDocentesDeHoy('lista-docentes', ausentesHoy, ahora);
@@ -124,6 +124,7 @@
 
     // 4. Carga inmediata desde caché para visualización instantánea sin parpadeo
     cargarDesdeCache();
+    actualizarPantalla();
 
     // 5. Carga y sincronización inicial de avisos con el backend
     await sincronizarAvisosServidor(true);

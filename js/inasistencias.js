@@ -167,7 +167,7 @@ window.InasistenciasLogic = (function () {
       if (d && d.getTime() === h.getTime()) {
         return { 
           texto: esHoy ? 'Solo por hoy' : 'Solo por mañana', 
-          clase: 'bg-slate-100 text-slate-700 border-slate-200' 
+          clase: esHoy ? 'bg-red-50 text-red-700 border-red-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200' 
         };
       }
       return { texto: 'Último día', clase: 'bg-amber-100 text-amber-800 border-amber-300' };
@@ -218,14 +218,14 @@ window.InasistenciasLogic = (function () {
     return `${diaNom} ${diaNum} de ${mesNom}`;
   }
 
-  // Formato uruguayo para encabezado dinámico de la próxima jornada: "Inasistencias · [día] [d/m]"
+  // Formato uruguayo para encabezado dinámico de la próxima jornada: "Inasistencias Mañana · [día] [d/m]"
   function formatearEncabezadoManana(fecha = new Date()) {
     const d = new Date(fecha);
     const diasMin = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
     const diaNom = diasMin[d.getDay()];
     const diaNum = d.getDate();
     const mesNum = (d.getMonth() + 1).toString().padStart(2, '0');
-    return `Inasistencias · ${diaNom} ${diaNum}/${mesNum}`;
+    return `Inasistencias Mañana · ${diaNom} ${diaNum}/${mesNum}`;
   }
 
   /**
