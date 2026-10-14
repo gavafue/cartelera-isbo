@@ -134,14 +134,17 @@
     <!-- COLUMNA 3: AVISOS BEDELÍA (Cápsulas / Feed) -->
     <aside id="columna-avisos" class="flex flex-col h-auto lg:h-full bg-white rounded-2xl shadow-lg border-2 border-slate-200/90 overflow-hidden transition-all duration-300 min-w-0">
       <!-- Encabezado Compacto: Avisos Bedelía -->
-      <div class="px-4 py-2 sm:py-2.5 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 text-white shrink-0 flex items-center justify-between shadow-sm border-b border-slate-700">
-        <div class="flex items-center gap-2 min-w-0">
+      <div class="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 text-white shrink-0 flex items-center justify-between shadow-sm border-b border-slate-700 gap-2">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
           <div class="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
             <span class="material-symbols-outlined text-[#F8E124] text-xl">campaign</span>
           </div>
-          <h2 class="text-sm sm:text-base lg:text-lg font-black tracking-wide uppercase leading-none truncate">Avisos Bedelía</h2>
+          <div class="min-w-0 flex-1">
+            <h2 class="text-xs sm:text-sm lg:text-base font-black tracking-wide uppercase leading-tight truncate">Avisos Bedelía</h2>
+            <span class="text-[10px] sm:text-[11px] font-bold text-slate-300 block leading-tight mt-0.5">Cartelera activa</span>
+          </div>
         </div>
-        <div class="flex items-center gap-1.5 bg-white/15 px-2.5 py-1 rounded-lg border border-white/20 shrink-0">
+        <div class="flex items-center gap-1.5 bg-white/15 px-2 sm:px-2.5 py-1 rounded-lg border border-white/20 shrink-0">
           <span class="text-base sm:text-lg font-black text-[#F8E124] leading-none" id="contador-avisos">0</span>
           <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-white">Avisos</span>
         </div>
@@ -160,10 +163,10 @@
   <!-- 3. SCRIPTS MODULARIZADOS VANILLA                                          -->
   <!-- ========================================================================= -->
   <script src="js/qrcode.min.js"></script>
-  <script src="js/sheet.js?v=4.5"></script>
-  <script src="js/inasistencias.js?v=4.5"></script>
-  <script src="js/ui.js?v=4.5"></script>
-  <script src="js/app.js?v=4.5"></script>
+  <script src="js/sheet.js?v=4.6"></script>
+  <script src="js/inasistencias.js?v=4.6"></script>
+  <script src="js/ui.js?v=4.6"></script>
+  <script src="js/app.js?v=4.6"></script>
 
 </body>
 </html>

@@ -258,11 +258,16 @@ window.UI = (function () {
       return;
     }
 
-    // Si hay 3 o más avisos, activar marquesina vertical continua
+    // Si hay 2 o más avisos, activar marquesina vertical continua para visualización rotativa
     const totalHtml = listaTarjetas.join('');
-    if (listaTarjetas.length >= 3) {
+    if (listaTarjetas.length >= 2) {
       contenedor.className = 'animate-marquee-v space-y-2.5';
-      contenedor.innerHTML = totalHtml + `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2"></div>` + totalHtml;
+      const separador = `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2"></div>`;
+      // Si son exactamente 2 avisos, duplicamos el bloque para garantizar un bucle continuo sin huecos
+      const bloque = (listaTarjetas.length === 2)
+        ? totalHtml + separador + totalHtml
+        : totalHtml;
+      contenedor.innerHTML = bloque + separador + bloque;
     } else {
       contenedor.className = 'space-y-2.5';
       contenedor.innerHTML = totalHtml;
