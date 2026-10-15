@@ -363,25 +363,39 @@ window.InasistenciasLogic = (function () {
     localStorage.setItem(STORAGE_APPS_SCRIPT, (url || '').trim());
   }
 
-  // Guarda la lista completa en Google Sheets mediante Google Apps Script Web App
-  async function guardarAvisosEnGoogleSheets(lista) {
+  let hayCambiosPendientesRemotos = false;
+
+  // Guarda la lista completa en Google Sheets mediante Google Apps Script Web App con timeout estricto
+  async function guardarAvisosEnGoogleSheets(lista, timeoutMs = 5000) {
     const url = obtenerUrlAppsScript();
     if (!url) return { ok: false, error: 'sin_url_script' };
+
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timerId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
     try {
       await fetch(url, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        signal: controller ? controller.signal : undefined,
         body: JSON.stringify({
           action: 'sync_all',
           avisos: lista
         })
       });
+      if (timerId) clearTimeout(timerId);
+      hayCambiosPendientesRemotos = false;
       return { ok: true };
     } catch (err) {
-      console.warn('Error al guardar en Google Apps Script:', err);
-      return { ok: false, error: err.message };
+      if (timerId) clearTimeout(timerId);
+      hayCambiosPendientesRemotos = true;
+      const esTimeout = err && (err.name === 'AbortError' || String(err).includes('abort'));
+      const errorMsg = esTimeout
+        ? 'Tiempo de espera agotado con Google Sheets'
+        : (err.message || 'Error de conexión');
+      console.warn('Error al guardar en Google Apps Script:', errorMsg);
+      return { ok: false, error: errorMsg, timeout: esTimeout };
     }
   }
 
@@ -462,6 +476,20 @@ window.InasistenciasLogic = (function () {
 
   // Sincroniza avisos con Google Sheets (pestaña 'Avisos') o backend
   async function sincronizarAvisosConServidor() {
+    // Si tenemos cambios locales pendientes de enviar a Google Sheets, reintentar primero
+    if (hayCambiosPendientesRemotos && verificarSesionAdmin()) {
+      try {
+        const pendientes = obtenerAvisosGuardados();
+        const resSync = await guardarAvisosEnGoogleSheets(pendientes, 5000);
+        if (resSync && resSync.ok) {
+          hayCambiosPendientesRemotos = false;
+          console.info('Sincronización pendiente con Google Sheets completada con éxito.');
+        }
+      } catch (errSync) {
+        console.warn('Reintento de sincronización pendiente pospuesto:', errSync);
+      }
+    }
+
     // Si hubo una modificación local reciente en este mismo dispositivo (últimos 15s),
     // protegemos la memoria local contra sobreescrituras remotas prematuras.
     if (modificacionLocalReciente()) {

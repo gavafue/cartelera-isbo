@@ -123,6 +123,8 @@
   const formLogin = document.getElementById('form-login');
   const inputLoginUsuario = document.getElementById('login-usuario');
   const inputLoginPassword = document.getElementById('login-password');
+  const btnTogglePassword = document.getElementById('btn-toggle-password');
+  const iconoTogglePassword = document.getElementById('icono-toggle-password');
   const loginError = document.getElementById('login-error');
 
   // Variables para elementos del panel administrativo (se enlazan dinámicamente tras autenticación)
@@ -272,12 +274,20 @@
     }, 3500);
   }
 
+  let timerEstadoCargando = null;
+  let timerSafetyDismissCargando = null;
+
   /**
    * Muestra un estado de carga en el modal existente para dar feedback instantáneo (0 ms).
    * Mantiene el modal abierto mientras se sincroniza con Google Sheets.
+   * Incluye salvaguardas para que NUNCA se quede colgado: tras 2s habilita "Continuar en segundo plano"
+   * y tras 5.5s auto-cierra el modal notificando que se sigue sincronizando.
    */
   function mostrarModalEstadoCargando(mensajeCustom = 'Guardando y sincronizando con Google Sheets...') {
     if (!modalConfirmacion || !modalConfirmacionBox) return;
+
+    if (timerEstadoCargando) clearTimeout(timerEstadoCargando);
+    if (timerSafetyDismissCargando) clearTimeout(timerSafetyDismissCargando);
 
     if (modalTitulo) modalTitulo.textContent = 'Sincronizando con Google Sheets';
     if (modalSubtitulo) modalSubtitulo.textContent = 'ISBO · Gestión de Cartelera';
@@ -295,7 +305,11 @@
       modalIconoContainer.className = 'h-12 w-12 rounded-2xl flex items-center justify-center font-bold shrink-0 bg-sky-100 text-sky-800 animate-spin';
     }
 
-    if (modalBtnCancelar) modalBtnCancelar.classList.add('hidden');
+    if (modalBtnCancelar) {
+      modalBtnCancelar.textContent = 'Continuar en segundo plano';
+      modalBtnCancelar.className = 'px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer';
+      modalBtnCancelar.classList.add('hidden');
+    }
     if (modalBtnConfirmar) {
       modalBtnConfirmar.className = 'px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-none flex items-center gap-1.5 cursor-not-allowed bg-slate-300 text-slate-600';
       modalBtnConfirmar.disabled = true;
@@ -306,12 +320,54 @@
     modalConfirmacion.classList.remove('hidden');
     modalConfirmacionBox.classList.remove('scale-95', 'opacity-0');
     modalConfirmacionBox.classList.add('scale-100', 'opacity-100');
+
+    const salirDeCargando = () => {
+      removerListenersCargando();
+      cerrarModalConfirmacion();
+      mostrarToast('Aviso guardado en cartelera. Sincronización continuando en segundo plano.', 'info');
+    };
+
+    const onKeyDownCargando = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        salirDeCargando();
+      }
+    };
+    const onBackdropCargando = (e) => {
+      if (e.target === modalConfirmacion) {
+        salirDeCargando();
+      }
+    };
+
+    const removerListenersCargando = () => {
+      if (timerEstadoCargando) clearTimeout(timerEstadoCargando);
+      if (timerSafetyDismissCargando) clearTimeout(timerSafetyDismissCargando);
+      document.removeEventListener('keydown', onKeyDownCargando);
+      if (modalConfirmacion) modalConfirmacion.removeEventListener('click', onBackdropCargando);
+      if (modalBtnCancelar) modalBtnCancelar.removeEventListener('click', salirDeCargando);
+    };
+
+    // A los 2 segundos de espera, permitir al usuario continuar voluntariamente
+    timerEstadoCargando = setTimeout(() => {
+      if (modalBtnCancelar) {
+        modalBtnCancelar.classList.remove('hidden');
+        modalBtnCancelar.addEventListener('click', salirDeCargando, { once: true });
+      }
+      document.addEventListener('keydown', onKeyDownCargando);
+      if (modalConfirmacion) modalConfirmacion.addEventListener('click', onBackdropCargando);
+    }, 2000);
+
+    // Salvaguarda final: tras 5.5s, auto-cerrar el modal cargando
+    timerSafetyDismissCargando = setTimeout(() => {
+      salirDeCargando();
+    }, 5500);
   }
 
   /**
    * Cierra de forma inmediata y segura el modal de confirmación si está abierto.
    */
   function cerrarModalConfirmacion() {
+    if (timerEstadoCargando) clearTimeout(timerEstadoCargando);
+    if (timerSafetyDismissCargando) clearTimeout(timerSafetyDismissCargando);
     if (!modalConfirmacion || !modalConfirmacionBox) return;
     modalConfirmacionBox.classList.remove('scale-100', 'opacity-100');
     modalConfirmacionBox.classList.add('scale-95', 'opacity-0');
@@ -336,6 +392,8 @@
     textoCancelar = 'Cancelar'
   } = {}) {
     return new Promise((resolve) => {
+      if (timerEstadoCargando) clearTimeout(timerEstadoCargando);
+      if (timerSafetyDismissCargando) clearTimeout(timerSafetyDismissCargando);
       if (!modalConfirmacion || !modalConfirmacionBox) {
         resolve(window.confirm(mensaje.replace(/<[^>]+>/g, '')));
         return;
@@ -973,12 +1031,14 @@
         } catch (errSync) {
           console.warn('Error al sincronizar con Google Sheets:', errSync);
           await mostrarModalAlerta({
-            titulo: 'Guardado con Advertencia',
-            mensaje: `El estado se actualizó localmente pero ocurrió un problema al sincronizar con Google Sheets: ${errSync.message || errSync}. Se reintentará en segundo plano.`,
+            titulo: 'Guardado en Cartelera',
+            mensaje: `El estado se actualizó correctamente en la Pantalla TV.<br><br><span class="text-xs text-amber-700 font-bold">Nota de sincronización:</span> ${errSync.message || errSync}. Se sincronizará en segundo plano.`,
             tipo: 'advertencia',
-            icono: 'warning',
+            icono: 'sync_problem',
             textoBoton: 'Entendido'
           });
+        } finally {
+          btn.disabled = false;
         }
       });
     });
@@ -1039,12 +1099,14 @@
         } catch (errSync) {
           console.warn('Error sincronizando eliminación:', errSync);
           await mostrarModalAlerta({
-            titulo: 'Eliminado Localmente',
-            mensaje: `El aviso se eliminó en este dispositivo pero ocurrió un error al actualizar Google Sheets: ${errSync.message || errSync}. Se reintentará automáticamente.`,
+            titulo: 'Eliminado de Cartelera',
+            mensaje: `El aviso se eliminó correctamente de la Pantalla TV.<br><br><span class="text-xs text-amber-700 font-bold">Nota de sincronización:</span> ${errSync.message || errSync}. Se sincronizará en segundo plano.`,
             tipo: 'advertencia',
-            icono: 'warning',
+            icono: 'sync_problem',
             textoBoton: 'Entendido'
           });
+        } finally {
+          btn.disabled = false;
         }
       });
     });
@@ -1134,6 +1196,20 @@
     } catch (e) {}
   }
 
+  // Restablece el campo de contraseña a su estado oculto inicial
+  function restablecerVisibilidadPassword() {
+    if (inputLoginPassword) {
+      inputLoginPassword.type = 'password';
+    }
+    if (iconoTogglePassword) {
+      iconoTogglePassword.textContent = 'visibility';
+    }
+    if (btnTogglePassword) {
+      btnTogglePassword.setAttribute('aria-label', 'Mostrar contraseña');
+      btnTogglePassword.setAttribute('title', 'Mostrar contraseña');
+    }
+  }
+
   // Desmonta por completo el panel administrativo del árbol DOM
   function desmontarPanelAdmin() {
     if (timerSyncInterval) {
@@ -1147,6 +1223,7 @@
     if (authRoot) {
       authRoot.classList.remove('hidden');
     }
+    restablecerVisibilidadPassword();
     if (inputLoginUsuario) {
       setTimeout(() => inputLoginUsuario.focus(), 150);
     }
@@ -1165,6 +1242,18 @@
   }
 
   function inicializarFormularioLogin() {
+    if (btnTogglePassword && inputLoginPassword && iconoTogglePassword) {
+      btnTogglePassword.addEventListener('click', () => {
+        const esPassword = inputLoginPassword.type === 'password';
+        inputLoginPassword.type = esPassword ? 'text' : 'password';
+        iconoTogglePassword.textContent = esPassword ? 'visibility_off' : 'visibility';
+        const nuevoTexto = esPassword ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        btnTogglePassword.setAttribute('aria-label', nuevoTexto);
+        btnTogglePassword.setAttribute('title', nuevoTexto);
+        inputLoginPassword.focus();
+      });
+    }
+
     if (formLogin) {
       formLogin.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -1185,10 +1274,12 @@
           crearSesionSegura(hashCombinado);
           if (loginError) loginError.classList.add('hidden');
           formLogin.reset();
+          restablecerVisibilidadPassword();
           montarPanelAdmin();
           mostrarToast('Sesión administrativa iniciada correctamente.', 'success');
         } else {
           if (loginError) loginError.classList.remove('hidden');
+          restablecerVisibilidadPassword();
           if (inputLoginPassword) {
             inputLoginPassword.value = '';
             inputLoginPassword.focus();
@@ -1216,6 +1307,7 @@
           cerrarSesionSegura();
           desmontarPanelAdmin();
           if (formLogin) formLogin.reset();
+          restablecerVisibilidadPassword();
           if (loginError) loginError.classList.add('hidden');
           mostrarToast('Sesión cerrada.', 'info');
         }
@@ -1326,27 +1418,34 @@
               errorEliminar = res.error || 'No se pudo conectar con Google Sheets';
             }
           }
+          if (errorEliminar) {
+            await mostrarModalAlerta({
+              titulo: 'Eliminado de Cartelera',
+              mensaje: `El aviso ${titulo} fue eliminado de la Pantalla TV.<br><br><span class="text-xs text-amber-700 font-bold">Nota de sincronización:</span> ${errorEliminar}. Se sincronizará en segundo plano.`,
+              tipo: 'advertencia',
+              icono: 'sync_problem',
+              textoBoton: 'Entendido'
+            });
+          } else {
+            await mostrarModalAlerta({
+              titulo: 'Comunicado Eliminado',
+              mensaje: `El aviso ${titulo} ha sido eliminado con éxito de la Pantalla TV y de la planilla Google Sheets.`,
+              tipo: 'exito',
+              icono: 'delete_sweep',
+              textoBoton: 'Aceptar'
+            });
+          }
         } catch (errSync) {
           console.warn('Error sincronizando eliminación:', errSync);
-          errorEliminar = errSync.message || 'Error de conexión';
-        }
-
-        if (errorEliminar) {
           await mostrarModalAlerta({
-            titulo: 'Eliminado con Advertencia',
-            mensaje: `El aviso ${titulo} fue eliminado en este dispositivo pero ocurrió un problema al sincronizar con Google Sheets: ${errorEliminar}. Se reintentará automáticamente.`,
+            titulo: 'Eliminado de Cartelera',
+            mensaje: `El aviso ${titulo} fue eliminado de la Pantalla TV.<br><br><span class="text-xs text-amber-700 font-bold">Nota de sincronización:</span> ${errSync.message || errSync}. Se sincronizará en segundo plano.`,
             tipo: 'advertencia',
-            icono: 'warning',
+            icono: 'sync_problem',
             textoBoton: 'Entendido'
           });
-        } else {
-          await mostrarModalAlerta({
-            titulo: 'Comunicado Eliminado',
-            mensaje: `El aviso ${titulo} ha sido eliminado con éxito de la Pantalla TV y de la planilla Google Sheets.`,
-            tipo: 'exito',
-            icono: 'delete_sweep',
-            textoBoton: 'Aceptar'
-          });
+        } finally {
+          btnEliminarForm.disabled = false;
         }
       });
     }
@@ -1383,10 +1482,10 @@
 
           if (errorVaciar) {
             await mostrarModalAlerta({
-              titulo: 'Vaciado con Advertencia',
-              mensaje: `Todos los comunicados se vaciaron localmente, pero falló la sincronización con Google Sheets: ${errorVaciar}.`,
+              titulo: 'Vaciado en Cartelera',
+              mensaje: `Todos los comunicados se vaciaron correctamente en la Pantalla TV.<br><br><span class="text-xs text-amber-700 font-bold">Nota de sincronización:</span> ${errorVaciar}. Se sincronizará en segundo plano.`,
               tipo: 'advertencia',
-              icono: 'warning',
+              icono: 'sync_problem',
               textoBoton: 'Entendido'
             });
           } else {
@@ -1520,10 +1619,10 @@
 
           if (errorSync) {
             await mostrarModalAlerta({
-              titulo: 'Guardado con Advertencia',
-              mensaje: `El aviso <strong>"${titulo}"</strong> se guardó en este dispositivo, pero falló la sincronización con Google Sheets: ${errorSync}. Se reintentará automáticamente.`,
+              titulo: 'Guardado en Cartelera',
+              mensaje: `El aviso <strong>"${titulo}"</strong> se guardó y actualizó correctamente en la Pantalla TV.<br><br><span class="text-xs text-amber-700 font-bold">Nota de sincronización:</span> ${errorSync}. Se reintentará automáticamente en segundo plano.`,
               tipo: 'advertencia',
-              icono: 'warning',
+              icono: 'sync_problem',
               textoBoton: 'Entendido'
             });
           } else {
@@ -1539,6 +1638,10 @@
               textoBoton: 'Aceptar'
             });
           }
+        } catch (errorInesperado) {
+          console.error('Error al procesar formulario de aviso:', errorInesperado);
+          cerrarModalConfirmacion();
+          mostrarToast('Aviso procesado localmente en cartelera.', 'info');
         } finally {
           restaurarEstadoSubmit();
         }
