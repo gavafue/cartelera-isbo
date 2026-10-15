@@ -619,10 +619,16 @@
 
     const titulo = inputTitulo.value.trim() || 'Título del Comunicado de Ejemplo';
     const mensaje = inputMensaje.value.trim() || 'Aquí se mostrará el cuerpo del mensaje tal como lo verán los estudiantes y docentes en la pantalla de pasillo.';
-    const prioridad = document.querySelector('input[name="prioridad"]:checked')?.value || 'atencion';
+    const prioridad = document.querySelector('input[name="prioridad"]:checked')?.value || null;
     const tieneQr = inputToggleQr.checked;
 
-    const estilo = obtenerEstiloPrioridad(prioridad);
+    const estilo = prioridad ? obtenerEstiloPrioridad(prioridad) : {
+      cardBg: 'bg-white border-2 border-dashed border-slate-300 text-slate-800',
+      badgeBg: 'bg-slate-100 text-slate-600 border border-slate-300',
+      badgeTexto: '⚠️ Selecciona Categoría y Color',
+      tituloCol: 'text-slate-900',
+      mensajeCol: 'text-slate-600'
+    };
 
     let htmlQR = '';
     if (tieneQr) {
@@ -799,8 +805,9 @@
     inputAvisoId.value = '';
     form.reset();
 
-    const radioAtencion = document.querySelector('input[name="prioridad"][value="atencion"]');
-    if (radioAtencion) radioAtencion.checked = true;
+    document.querySelectorAll('input[name="prioridad"]').forEach(r => {
+      r.checked = false;
+    });
 
     inputToggleQr.checked = false;
     contenedorQrEnlace.classList.add('hidden');
@@ -1329,6 +1336,7 @@
     }
 
     document.querySelectorAll('input[name="prioridad"]').forEach(r => {
+      r.checked = false;
       r.addEventListener('change', actualizarVistaPrevia);
     });
 
@@ -1516,7 +1524,7 @@
         const id = inputAvisoId.value.trim() || undefined;
         const titulo = inputTitulo.value.trim();
         const mensaje = inputMensaje.value.trim();
-        const prioridad = document.querySelector('input[name="prioridad"]:checked')?.value || 'atencion';
+        const prioridad = document.querySelector('input[name="prioridad"]:checked')?.value || null;
         const tieneQr = inputToggleQr.checked;
         const urlIngresada = inputQrUrl.value.trim();
 
@@ -1537,6 +1545,20 @@
             icono: 'warning',
             textoBoton: 'Entendido'
           });
+          return;
+        }
+
+        if (!prioridad) {
+          restaurarEstadoSubmit();
+          await mostrarModalAlerta({
+            titulo: 'Categoría y Color Requerido',
+            mensaje: 'Debes seleccionar obligatoriamente un formato y nivel de color para el comunicado (Urgente, Atención, Avisos, Información, Trámites o Exámenes).',
+            tipo: 'advertencia',
+            icono: 'palette',
+            textoBoton: 'Seleccionar Formato'
+          });
+          const primerRadio = document.querySelector('input[name="prioridad"]');
+          if (primerRadio) primerRadio.focus();
           return;
         }
 
