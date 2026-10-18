@@ -14,6 +14,7 @@
  */
 
 window.UI = (function () {
+  const esc = InasistenciasLogic.escaparHtml;
   let ultimosConteos = { nHoy: 0, nManana: 0, nAvisos: 0 };
 
   // Renderiza las insignias de grupos normalizados (ej: 2° MK, 1° MM, TODOS LOS GRUPOS)
@@ -37,7 +38,7 @@ window.UI = (function () {
       <div class="flex flex-wrap gap-1 sm:gap-1.5">
         ${grupos.map((g, i) => `
           <span class="${paleta[i % paleta.length]} text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-md shadow-xs border border-white/20 whitespace-nowrap">
-            ${g}
+            ${esc(g)}
           </span>
         `).join('')}
       </div>
@@ -107,11 +108,11 @@ window.UI = (function () {
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
               <div class="h-8 w-8 sm:h-9 sm:w-9 rounded-xl ${color} text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0">
-                ${iniciales}
+                ${esc(iniciales)}
               </div>
               <div class="min-w-0 flex-1">
                 <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug break-normal">
-                  ${d.nombre}
+                  ${esc(d.nombre)}
                 </h3>
                 <span class="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Docente</span>
               </div>
@@ -195,7 +196,8 @@ window.UI = (function () {
   const qrCacheOffline = new Map();
 
   function resolverImagenQR(a) {
-    if (a.qrImagen) return a.qrImagen;
+    const imagenPropia = InasistenciasLogic.urlImagenSegura(a.qrImagen);
+    if (imagenPropia) return imagenPropia;
     if (!a.qrUrl) return '';
     if (qrCacheOffline.has(a.qrUrl)) return qrCacheOffline.get(a.qrUrl);
 
@@ -255,14 +257,14 @@ window.UI = (function () {
                 </span>
               ` : ''}
             </div>
-            <h3 class="text-sm sm:text-base lg:text-lg font-black leading-snug ${config.tituloCol}">${a.titulo}</h3>
-            <p class="text-xs sm:text-sm ${config.mensajeCol} font-medium mt-1.5 leading-relaxed">${a.mensaje}</p>
+            <h3 class="text-sm sm:text-base lg:text-lg font-black leading-snug ${config.tituloCol}">${esc(a.titulo)}</h3>
+            <p class="text-xs sm:text-sm ${config.mensajeCol} font-medium mt-1.5 leading-relaxed">${esc(a.mensaje)}</p>
           </div>
 
           ${tieneQR ? `
             <div class="mt-3 p-3 bg-white text-slate-900 rounded-xl flex flex-col items-center gap-2.5 shadow-md border-2 border-slate-900 text-center">
               <div class="w-36 h-36 sm:w-40 sm:h-40 bg-white p-2 rounded-xl border-2 border-slate-900 shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
-                <img src="${imgQR}" alt="Código QR institucional" class="w-full h-full object-contain block" style="min-width: 140px; min-height: 140px; image-rendering: pixelated;">
+                <img src="${esc(imgQR)}" alt="Código QR institucional" class="w-full h-full object-contain block" style="min-width: 140px; min-height: 140px; image-rendering: pixelated;">
               </div>
               <div class="w-full">
                 <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-sky-100 text-sky-900 text-[11px] font-black uppercase tracking-wider mb-1">
@@ -274,7 +276,7 @@ window.UI = (function () {
                 </p>
                 ${a.qrUrl ? `
                   <div class="mt-1.5 px-2 py-0.5 rounded-lg bg-slate-100 text-[10px] font-mono font-bold text-sky-900 truncate border border-slate-300 max-w-full">
-                    🔗 ${a.qrUrl}
+                    🔗 ${esc(a.qrUrl)}
                   </div>
                 ` : ''}
               </div>
