@@ -16,6 +16,16 @@
 window.UI = (function () {
   const esc = InasistenciasLogic.escaparHtml;
   // Con movimiento reducido no hay desplazamiento automático: la lista queda estática y se puede desplazar a mano
+  // Velocidad única de la marquesina (px/s) para docentes y avisos: la duración se calcula según la altura real
+  const VELOCIDAD_MARQUESINA_PX_S = 40;
+  function fijarVelocidadMarquesina(contenedor) {
+    requestAnimationFrame(() => {
+      const mitad = contenedor.scrollHeight / 2;
+      if (mitad > 0 && contenedor.classList.contains('animate-marquee-v')) {
+        contenedor.style.animationDuration = `${(mitad / VELOCIDAD_MARQUESINA_PX_S).toFixed(1)}s`;
+      }
+    });
+  }
   const movimientoReducido = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let ultimosConteos = { nHoy: 0, nManana: 0, nAvisos: 0 };
 
@@ -155,6 +165,7 @@ window.UI = (function () {
       contenedor.innerHTML = bloque + bloque;
       const duracion = Math.max(24, Math.round(docentes.length * 6));
       contenedor.style.animationDuration = `${duracion}s`;
+      fijarVelocidadMarquesina(contenedor);
     } else {
       contenedor.className = claseBase;
       contenedor.innerHTML = tarjetasHtml;
@@ -324,6 +335,7 @@ window.UI = (function () {
       contenedor.innerHTML = bloque + separador + bloque;
       const duracion = Math.max(22, Math.round(listaTarjetas.length * 12));
       contenedor.style.animationDuration = `${duracion}s`;
+      fijarVelocidadMarquesina(contenedor);
     } else {
       contenedor.className = 'space-y-2.5';
       contenedor.innerHTML = totalHtml;
