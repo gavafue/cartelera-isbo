@@ -69,3 +69,67 @@ test('medición de legibilidad a distancia en 1920x1080 (informativa)', async ({
   await info.attach('tamanos-de-texto.json', { body: JSON.stringify(medidas, null, 2), contentType: 'application/json' });
   console.log('Tamaños de texto en 1920x1080 (px: cantidad de textos):', JSON.stringify(medidas));
 });
+
+test('la fecha del encabezado respeta la ortografía del español', async ({ page }) => {
+  await redVisual(page);
+  await page.goto('/index.html');
+  await expect(page.locator('#reloj-fecha')).toHaveText(/^[A-ZÁÉÍÓÚ][a-záéíóú]+ \d{1,2} de [a-záéíóú]+$/);
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById('reloj-fecha')).textTransform)).toBe('none');
+});
+
+test('en TV 1920x1080 ningún texto visible baja de 13 px y el contraste sobre fondo claro llega a 4.5:1', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await redVisual(page, avisos);
+  await sembrar(page, { docentes, avisos });
+  await page.goto('/index.html');
+  await page.waitForTimeout(1500);
+  const r = await page.evaluate(() => {
+    const rgb = (c) => c.match(/[\d.]+/g).map(Number);
+    const lum = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+      .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const fondoClaro = (el) => {
+      for (let e = el; e; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.backgroundImage !== 'none') return null;
+        const c = rgb(cs.backgroundColor);
+        if (c.length === 3 || c[3] === 1) return c.slice(0, 3);
+      }
+      return [255, 255, 255];
+    };
+    const chicos = new Set(); const pobres = new Set();
+    const recorrer = (el) => {
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return;
+      const propio = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+      if (propio && !el.classList.contains('material-symbols-outlined')) {
+        if (parseFloat(cs.fontSize) < 13) chicos.add(`${el.textContent.trim().slice(0, 24)} (${cs.fontSize})`);
+        const bg = fondoClaro(el);
+        if (bg) {
+          const fg = rgb(cs.color).slice(0, 3);
+          const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+          const ratio = (a + 0.05) / (b + 0.05);
+          if (ratio < 4.5) pobres.add(`${el.textContent.trim().slice(0, 24)} (${ratio.toFixed(2)})`);
+        }
+      }
+      [...el.children].forEach(recorrer);
+    };
+    recorrer(document.body);
+    return { chicos: [...chicos], pobres: [...pobres] };
+  });
+  expect(r.chicos).toEqual([]);
+  expect(r.pobres).toEqual([]);
+});
+
+test('con movimiento reducido no hay desplazamiento automático y la lista no se duplica', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await redVisual(page, avisos);
+  await sembrar(page, { docentes, avisos });
+  await page.goto('/index.html');
+  await page.waitForTimeout(1200);
+  expect(await page.locator('.animate-marquee-v, .animate-marquee-h').count()).toBe(0);
+  expect(await page.locator('#lista-docentes h3', { hasText: 'Ana Pérez' }).count()).toBe(1);
+  const animados = await page.evaluate(() => [...document.querySelectorAll('*')]
+    .filter((e) => { const a = getComputedStyle(e).animationName; return a !== 'none' && !/pulse|ping|spin/.test(a); }).length);
+  expect(animados).toBe(0);
+});
