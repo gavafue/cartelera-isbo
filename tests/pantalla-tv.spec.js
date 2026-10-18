@@ -45,6 +45,5 @@ test('docentes y avisos se desplazan a la misma velocidad (px/s)', async ({ page
     const e = document.getElementById(id);
     return e.scrollHeight / 2 / parseFloat(getComputedStyle(e).animationDuration);
   }));
-  expect(Math.abs(v[0] - v[1]) / v[1]).toBeLessThan(0.1);
-  expect(v[0]).toBeGreaterThan(35);
+  for (const velocidad of v) expect(Math.abs(velocidad - 40)).toBeLessThan(4);
 });
