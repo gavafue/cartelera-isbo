@@ -15,18 +15,20 @@
 
 window.UI = (function () {
   const esc = InasistenciasLogic.escaparHtml;
+  // Con movimiento reducido no hay desplazamiento automático: la lista queda estática y se puede desplazar a mano
+  const movimientoReducido = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let ultimosConteos = { nHoy: 0, nManana: 0, nAvisos: 0 };
 
   // Renderiza las insignias de grupos normalizados (ej: 2° MK, 1° MM, TODOS LOS GRUPOS)
   function renderGrupos(grupoTexto) {
     const grupos = InasistenciasLogic.extraerGrupos(grupoTexto);
     if (grupos.length === 0) {
-      return '<span class="text-slate-400 text-[10px] sm:text-[11px] font-semibold">Sin grupo asignado</span>';
+      return '<span class="text-slate-600 text-[0.75rem] sm:text-[0.8125rem] font-semibold">Sin grupo asignado</span>';
     }
 
     if (grupos.length === 1 && grupos[0] === 'TODOS LOS GRUPOS') {
       return `
-        <span class="inline-flex items-center gap-1 bg-slate-900 text-white font-black text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-700 shadow-xs">
+        <span class="inline-flex items-center gap-1 bg-slate-900 text-white font-black text-[0.75rem] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-slate-700 shadow-xs">
           <span class="material-symbols-outlined text-xs text-[#F8E124]">groups</span>
           <span>TODOS LOS GRUPOS</span>
         </span>
@@ -37,7 +39,7 @@ window.UI = (function () {
     return `
       <div class="flex flex-wrap gap-1 sm:gap-1.5">
         ${grupos.map((g, i) => `
-          <span class="${paleta[i % paleta.length]} text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-md shadow-xs border border-white/20 whitespace-nowrap">
+          <span class="${paleta[i % paleta.length]} text-white font-bold text-[0.75rem] sm:text-xs px-2 py-0.5 rounded-md shadow-xs border border-white/20 whitespace-nowrap">
             ${esc(g)}
           </span>
         `).join('')}
@@ -63,7 +65,7 @@ window.UI = (function () {
           <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2.5 shadow-sm border border-emerald-200">
             <span class="material-symbols-outlined text-3xl sm:text-4xl">verified</span>
           </div>
-          <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider mb-1.5 border border-emerald-300">
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[0.75rem] font-black uppercase tracking-wider mb-1.5 border border-emerald-300">
             Jornada Normal
           </span>
           <h3 class="text-base sm:text-lg lg:text-xl font-black text-slate-800 tracking-tight">${tituloVacio}</h3>
@@ -96,8 +98,8 @@ window.UI = (function () {
       const estado = InasistenciasLogic.calcularEstado(d, fecha);
 
       const badgeTemporalHtml = badgeTemporal ? `
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${badgeTemporal.clase}">
-          <span class="material-symbols-outlined text-[12px] sm:text-[13px] leading-none">${badgeTemporal.icono}</span>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[0.75rem] sm:text-[0.8125rem] font-black uppercase tracking-wider ${badgeTemporal.clase}">
+          <span class="material-symbols-outlined text-[0.75rem] sm:text-[0.8125rem] leading-none">${badgeTemporal.icono}</span>
           <span>${badgeTemporal.texto}</span>
         </span>
       ` : '';
@@ -114,12 +116,12 @@ window.UI = (function () {
                 <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug break-normal">
                   ${esc(d.nombre)}
                 </h3>
-                <span class="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Docente</span>
+                <span class="text-[0.6875rem] sm:text-[0.75rem] font-semibold text-slate-600 uppercase tracking-wider block">Docente</span>
               </div>
             </div>
             <div class="shrink-0 ${badgeTemporal ? 'flex flex-col items-end gap-1' : 'text-right'}">
               ${badgeTemporalHtml}
-              <span class="text-[9px] sm:text-[10px] md:text-xs font-bold px-2 py-0.5 sm:py-1 rounded-lg border shadow-xs inline-block whitespace-nowrap ${estado.clase}">
+              <span class="text-[0.6875rem] sm:text-[0.75rem] md:text-xs font-bold px-2 py-0.5 sm:py-1 rounded-lg border shadow-xs inline-block whitespace-nowrap ${estado.clase}">
                 ${estado.texto}
               </span>
             </div>
@@ -127,8 +129,8 @@ window.UI = (function () {
 
           <!-- Nivel 2: Grupos Afectados -->
           <div class="pt-1.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-0.5">
-              <span class="material-symbols-outlined text-[13px] text-slate-400">groups</span> Grupos:
+            <span class="text-[0.75rem] font-black text-slate-600 uppercase tracking-wider shrink-0 flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[0.8125rem] text-slate-600">groups</span> Grupos:
             </span>
             ${renderGrupos(d.grupo)}
           </div>
@@ -146,7 +148,7 @@ window.UI = (function () {
     contenedor.style.animationDuration = '';
 
     // Si hay 4 o más docentes, activar marquesina continua para visualización completa
-    if (docentes.length >= 4) {
+    if (docentes.length >= 4 && !movimientoReducido()) {
       const separador = `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2 ${esColumnaAncha ? 'col-span-2' : ''}"></div>`;
       const bloque = tarjetasHtml + separador;
       contenedor.className = `animate-marquee-v ${claseBase}`;
@@ -248,11 +250,11 @@ window.UI = (function () {
         <div class="${config.cardBg} rounded-xl p-3.5 sm:p-4 shadow-sm relative overflow-hidden flex flex-col justify-between border border-white/20">
           <div>
             <div class="flex items-center justify-between gap-2 mb-2">
-              <span class="inline-flex items-center gap-1 ${config.colorBadge} text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+              <span class="inline-flex items-center gap-1 ${config.colorBadge} text-[0.75rem] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
                 ${config.badgeTexto}
               </span>
               ${tieneQR ? `
-                <span class="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-white/30 shrink-0">
+                <span class="inline-flex items-center gap-1 bg-slate-900/85 text-white text-[0.75rem] font-bold px-2 py-0.5 rounded border border-white/30 shrink-0">
                   <span class="material-symbols-outlined text-xs">qr_code_scanner</span> QR Activo
                 </span>
               ` : ''}
@@ -267,15 +269,15 @@ window.UI = (function () {
                 <img src="${esc(imgQR)}" alt="Código QR institucional" class="w-full h-full object-contain block" style="min-width: 140px; min-height: 140px; image-rendering: pixelated;">
               </div>
               <div class="w-full">
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-sky-100 text-sky-900 text-[11px] font-black uppercase tracking-wider mb-1">
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-sky-100 text-sky-900 text-[0.8125rem] font-black uppercase tracking-wider mb-1">
                   <span class="material-symbols-outlined text-xs text-sky-700">qr_code_scanner</span>
                   <span>Escaneá con tu celular</span>
                 </div>
-                <p class="text-[11px] text-slate-700 font-semibold leading-snug">
+                <p class="text-[0.8125rem] text-slate-700 font-semibold leading-snug">
                   Apunta con la cámara de tu teléfono móvil hacia la pantalla.
                 </p>
                 ${a.qrUrl ? `
-                  <div class="mt-1.5 px-2 py-0.5 rounded-lg bg-slate-100 text-[10px] font-mono font-bold text-sky-900 truncate border border-slate-300 max-w-full">
+                  <div class="mt-1.5 px-2 py-0.5 rounded-lg bg-slate-100 text-[0.75rem] font-mono font-bold text-sky-900 truncate border border-slate-300 max-w-full">
                     🔗 ${esc(a.qrUrl)}
                   </div>
                 ` : ''}
@@ -291,9 +293,9 @@ window.UI = (function () {
       contenedor.className = 'space-y-2.5';
       contenedor.innerHTML = `
         <div class="bg-white rounded-xl p-4 text-center border-2 border-dashed border-slate-200">
-          <span class="material-symbols-outlined text-slate-400 text-3xl mb-1">campaign</span>
+          <span class="material-symbols-outlined text-slate-600 text-3xl mb-1">campaign</span>
           <h4 class="text-xs font-bold text-slate-700">Sin avisos en cartelera</h4>
-          <p class="text-[11px] text-slate-400 mt-0.5">Las actividades transcurren con normalidad.</p>
+          <p class="text-[0.8125rem] text-slate-600 mt-0.5">Las actividades transcurren con normalidad.</p>
         </div>
       `;
       return;
@@ -312,7 +314,7 @@ window.UI = (function () {
 
     // Si hay 2 o más avisos, activar marquesina vertical continua para visualización rotativa
     const totalHtml = listaTarjetas.join('');
-    if (listaTarjetas.length >= 2) {
+    if (listaTarjetas.length >= 2 && !movimientoReducido()) {
       contenedor.className = 'animate-marquee-v space-y-2.5';
       const separador = `<div class="border-t-2 border-dashed border-slate-300 my-2 pt-2"></div>`;
       // Si son exactamente 2 avisos, duplicamos el bloque para garantizar un bucle continuo sin huecos

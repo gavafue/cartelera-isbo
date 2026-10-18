@@ -211,8 +211,8 @@ window.InasistenciasLogic = (function () {
   }
 
   const COLORES_AVATAR = [
-    'bg-indigo-600', 'bg-purple-600', 'bg-blue-600',
-    'bg-pink-600', 'bg-emerald-600', 'bg-teal-600'
+    'bg-indigo-700', 'bg-purple-700', 'bg-blue-700',
+    'bg-pink-700', 'bg-emerald-700', 'bg-teal-700'
   ];
 
   function obtenerColor(nombre) {
@@ -226,8 +226,8 @@ window.InasistenciasLogic = (function () {
   // Formateo de fecha en español
   const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   const MESES = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
   ];
 
   function formatearFecha(fecha = new Date()) {

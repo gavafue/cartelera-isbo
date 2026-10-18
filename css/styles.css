@@ -71,3 +71,22 @@ input, textarea, select {
   transition: flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
 }
 
+
+/* Legibilidad a distancia: en pantallas grandes (TV de pasillo) todo el texto y los espacios en rem escalan */
+@media (min-width: 1600px) {
+  html { font-size: 125%; }
+}
+
+/* Movimiento reducido: sin desplazamiento automático; las columnas se recorren a mano */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-h,
+  .animate-marquee-v,
+  .pulse-radar {
+    animation: none !important;
+  }
+  #contenedor-scroll-docentes,
+  #contenedor-scroll-docentes-manana,
+  #contenedor-scroll-avisos {
+    overflow-y: auto;
+  }
+}
