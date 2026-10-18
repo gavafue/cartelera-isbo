@@ -116,6 +116,8 @@
     return result;
   }
 
+  const esc = InasistenciasLogic.escaparHtml;
+
   // Elementos de la capa de autenticación (únicos en el DOM inicial)
   const authRoot = document.getElementById('auth-root');
   const adminRoot = document.getElementById('admin-root');
@@ -636,7 +638,7 @@
         htmlQR = `
           <div class="mt-4 p-3.5 bg-white text-slate-900 border-2 border-slate-900 rounded-2xl flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4 shadow-md">
             <div class="w-36 h-36 sm:w-44 sm:h-44 bg-white p-2.5 rounded-xl border-2 border-slate-900 shrink-0 flex items-center justify-center overflow-hidden shadow-inner">
-              <img src="${imagenQRActual}" alt="Código QR institucional" class="w-full h-full object-contain block" style="min-width: 140px; min-height: 140px; image-rendering: pixelated;">
+              <img src="${esc(imagenQRActual)}" alt="Código QR institucional" class="w-full h-full object-contain block" style="min-width: 140px; min-height: 140px; image-rendering: pixelated;">
             </div>
             <div class="min-w-0 flex-1 text-center sm:text-left">
               <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 text-xs font-black uppercase tracking-wider mb-1">
@@ -646,7 +648,7 @@
               <p class="text-xs text-slate-700 font-semibold leading-snug">Apunta con la cámara de tu móvil hacia la pantalla TV para acceder al enlace.</p>
               ${urlQRActual ? `
                 <div class="mt-2 px-2.5 py-1 rounded bg-slate-100 text-xs font-mono font-bold text-sky-900 truncate border border-slate-300">
-                  🔗 ${urlQRActual}
+                  🔗 ${esc(urlQRActual)}
                 </div>
               ` : ''}
             </div>
@@ -679,8 +681,8 @@
             </span>
           ` : ''}
         </div>
-        <h3 class="text-lg sm:text-xl font-black leading-tight ${estilo.tituloCol}">${titulo}</h3>
-        <p class="text-xs sm:text-sm ${estilo.mensajeCol} font-medium mt-2 leading-relaxed">${mensaje}</p>
+        <h3 class="text-lg sm:text-xl font-black leading-tight ${estilo.tituloCol}">${esc(titulo)}</h3>
+        <p class="text-xs sm:text-sm ${estilo.mensajeCol} font-medium mt-2 leading-relaxed">${esc(mensaje)}</p>
 
         ${htmlQR}
       </div>
@@ -797,7 +799,7 @@
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     inputTitulo.focus();
 
-    mostrarToast(`Editando: "${aviso.titulo}"`, 'info');
+    mostrarToast(`Editando: "${esc(aviso.titulo)}"`, 'info');
   }
 
   // Cancela la edición y devuelve el formulario al modo "Nuevo Aviso"
@@ -900,7 +902,7 @@
       const estilo = obtenerEstiloPrioridad(a.prioridad);
       const estaActivo = a.activo !== false;
       const tieneQR = !!(a.tieneQr && (a.qrImagen || a.qrUrl));
-      const qrThumb = a.qrImagen || (a.qrUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(a.qrUrl)}` : '');
+      const qrThumb = InasistenciasLogic.urlImagenSegura(a.qrImagen) || (a.qrUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(a.qrUrl)}` : '');
 
       return `
         <div class="p-4 rounded-xl bg-white border-2 ${estaActivo ? 'border-slate-200' : 'border-dashed border-slate-300 opacity-75'} shadow-sm hover:border-slate-300 transition-all flex flex-col gap-2.5">
@@ -956,18 +958,18 @@
           <!-- Título y Mensaje -->
           <div class="flex items-start gap-3 justify-between">
             <div class="min-w-0 flex-1">
-              <h4 class="text-sm font-extrabold text-slate-900 leading-snug">${a.titulo}</h4>
-              <p class="text-xs text-slate-600 font-medium mt-1 line-clamp-2 leading-relaxed">${a.mensaje}</p>
+              <h4 class="text-sm font-extrabold text-slate-900 leading-snug">${esc(a.titulo)}</h4>
+              <p class="text-xs text-slate-600 font-medium mt-1 line-clamp-2 leading-relaxed">${esc(a.mensaje)}</p>
               ${a.qrUrl ? `
                 <span class="inline-block text-[10px] text-sky-800 font-mono font-medium truncate mt-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 max-w-full">
-                  🔗 ${a.qrUrl}
+                  🔗 ${esc(a.qrUrl)}
                 </span>
               ` : ''}
             </div>
 
             ${tieneQR && qrThumb ? `
               <div class="h-12 w-12 bg-white rounded-lg border-2 border-slate-900 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden" title="Código QR adjunto">
-                <img src="${qrThumb}" alt="QR" class="w-full h-full object-contain">
+                <img src="${esc(qrThumb)}" alt="QR" class="w-full h-full object-contain">
               </div>
             ` : ''}
           </div>
@@ -1003,8 +1005,8 @@
         const confirmado = await mostrarModalConfirmacion({
           titulo: vaAActivar ? 'Mostrar en Pantalla TV' : 'Ocultar de Pantalla TV',
           mensaje: vaAActivar
-            ? `¿Deseas mostrar y reactivar el comunicado <strong>"${aviso.titulo}"</strong> en la Pantalla TV?<br><br><span class="text-xs text-emerald-700 font-bold">Volverá a estar visible inmediatamente para los estudiantes en la cartelera.</span>`
-            : `¿Deseas ocultar el comunicado <strong>"${aviso.titulo}"</strong> de la Pantalla TV?<br><br><span class="text-xs text-amber-700 font-bold">El aviso quedará en pausa y no se mostrará en la cartelera hasta que lo reactives.</span>`,
+            ? `¿Deseas mostrar y reactivar el comunicado <strong>"${esc(aviso.titulo)}"</strong> en la Pantalla TV?<br><br><span class="text-xs text-emerald-700 font-bold">Volverá a estar visible inmediatamente para los estudiantes en la cartelera.</span>`
+            : `¿Deseas ocultar el comunicado <strong>"${esc(aviso.titulo)}"</strong> de la Pantalla TV?<br><br><span class="text-xs text-amber-700 font-bold">El aviso quedará en pausa y no se mostrará en la cartelera hasta que lo reactives.</span>`,
           tipo: vaAActivar ? 'info' : 'advertencia',
           icono: vaAActivar ? 'visibility' : 'visibility_off',
           textoConfirmar: vaAActivar ? 'Sí, Mostrar en TV' : 'Sí, Ocultar Aviso',
@@ -1030,7 +1032,7 @@
           }
           await mostrarModalAlerta({
             titulo: vaAActivar ? 'Comunicado Visible en TV' : 'Comunicado Ocultado',
-            mensaje: `El comunicado <strong>"${aviso.titulo}"</strong> fue ${vaAActivar ? 'activado' : 'ocultado'} y sincronizado exitosamente con Google Sheets.`,
+            mensaje: `El comunicado <strong>"${esc(aviso.titulo)}"</strong> fue ${vaAActivar ? 'activado' : 'ocultado'} y sincronizado exitosamente con Google Sheets.`,
             tipo: 'exito',
             icono: vaAActivar ? 'check_circle' : 'visibility_off',
             textoBoton: 'Aceptar'
@@ -1059,7 +1061,7 @@
         if (!id) return;
 
         const aviso = InasistenciasLogic.obtenerAvisoPorId(id);
-        const titulo = aviso ? `"${aviso.titulo}"` : 'este aviso';
+        const titulo = aviso ? `"${esc(aviso.titulo)}"` : 'este aviso';
 
         btn.disabled = true;
 
@@ -1390,7 +1392,7 @@
         const id = inputAvisoId.value.trim();
         if (!id) return;
         const aviso = InasistenciasLogic.obtenerAvisoPorId(id);
-        const titulo = aviso ? `"${aviso.titulo}"` : 'este aviso';
+        const titulo = aviso ? `"${esc(aviso.titulo)}"` : 'este aviso';
 
         btnEliminarForm.disabled = true;
 
@@ -1579,7 +1581,7 @@
         const accionTexto = esEdicion ? 'guardar las modificaciones del' : 'publicar el';
         const confirmado = await mostrarModalConfirmacion({
           titulo: esEdicion ? 'Guardar Cambios del Aviso' : 'Publicar Nuevo Aviso',
-          mensaje: `¿Confirmas que deseas ${accionTexto} aviso <strong>"${titulo}"</strong> en la Pantalla TV y en la planilla Google Sheets?`,
+          mensaje: `¿Confirmas que deseas ${accionTexto} aviso <strong>"${esc(titulo)}"</strong> en la Pantalla TV y en la planilla Google Sheets?`,
           tipo: 'info',
           icono: esEdicion ? 'save' : 'send',
           textoConfirmar: esEdicion ? 'Guardar y Publicar' : 'Publicar Aviso',
@@ -1642,15 +1644,15 @@
           if (errorSync) {
             await mostrarModalAlerta({
               titulo: 'Guardado en Cartelera',
-              mensaje: `El aviso <strong>"${titulo}"</strong> se guardó y actualizó correctamente en la Pantalla TV.<br><br><span class="text-xs text-amber-700 font-bold">Nota de sincronización:</span> ${errorSync}. Se reintentará automáticamente en segundo plano.`,
+              mensaje: `El aviso <strong>"${esc(titulo)}"</strong> se guardó y actualizó correctamente en la Pantalla TV.<br><br><span class="text-xs text-amber-700 font-bold">Nota de sincronización:</span> ${errorSync}. Se reintentará automáticamente en segundo plano.`,
               tipo: 'advertencia',
               icono: 'sync_problem',
               textoBoton: 'Entendido'
             });
           } else {
             const textoExito = esEdicion
-              ? `El aviso <strong>"${titulo}"</strong> ha sido modificado y sincronizado correctamente con la Pantalla TV y la planilla Google Sheets.`
-              : `El aviso <strong>"${titulo}"</strong> fue publicado con éxito en la Pantalla TV y sincronizado en la planilla Google Sheets.`;
+              ? `El aviso <strong>"${esc(titulo)}"</strong> ha sido modificado y sincronizado correctamente con la Pantalla TV y la planilla Google Sheets.`
+              : `El aviso <strong>"${esc(titulo)}"</strong> fue publicado con éxito en la Pantalla TV y sincronizado en la planilla Google Sheets.`;
 
             await mostrarModalAlerta({
               titulo: esEdicion ? '¡Aviso Modificado!' : '¡Aviso Publicado con Éxito!',

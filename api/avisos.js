@@ -94,6 +94,29 @@ async function guardarEnGoogleAppsScript(avisos) {
   }
 }
 
+const PRIORIDADES = ['urgente', 'atencion', 'avisos', 'informacion', 'tramites', 'examenes'];
+const MAX_QR_IMAGEN = 200000;
+
+// Solo enlaces web: descarta javascript:, data:, file: y similares
+function urlWebSegura(valor) {
+  const u = String(valor || '').trim().slice(0, 2000);
+  try {
+    const p = new URL(u);
+    return (p.protocol === 'https:' || p.protocol === 'http:') ? u : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+// Solo imágenes generadas por la app: data URL de imagen o api.qrserver.com por HTTPS
+function imagenQrSegura(valor) {
+  const u = String(valor || '').trim();
+  if (u.length > MAX_QR_IMAGEN) return '';
+  if (/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+\/=]+$/.test(u)) return u;
+  if (/^https:\/\/api\.qrserver\.com\/v1\/create-qr-code\/\?[^\s"'<>]*$/.test(u)) return u;
+  return '';
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -121,7 +144,7 @@ module.exports = async function handler(req, res) {
       });
     } catch (err) {
       console.error('Error en GET /api/avisos:', err);
-      return res.status(500).json({ ok: false, error: err.message, avisos: [] });
+      return res.status(500).json({ ok: false, error: 'Error interno', avisos: [] });
     }
   }
 
@@ -137,12 +160,20 @@ module.exports = async function handler(req, res) {
 
       let body = req.body;
       if (typeof body === 'string') {
-        body = JSON.parse(body);
+        try {
+          body = JSON.parse(body);
+        } catch (e) {
+          return res.status(400).json({ ok: false, error: 'JSON inválido' });
+        }
       }
 
       const lista = Array.isArray(body) ? body : (body?.avisos || null);
       if (!Array.isArray(lista)) {
         return res.status(400).json({ ok: false, error: 'Formato inválido. Se esperaba un array de avisos.' });
+      }
+
+      if (lista.length > 100) {
+        return res.status(413).json({ ok: false, error: 'Demasiados avisos' });
       }
 
       const sanitizados = [];
@@ -156,16 +187,21 @@ module.exports = async function handler(req, res) {
         if (postFirmas.has(firma)) continue;
         postFirmas.add(firma);
 
+        const qrUrl = urlWebSegura(a.qrUrl);
+        const qrImagen = imagenQrSegura(a.qrImagen);
+        const idLimpio = String(a.id || '').replace(/[^\w.-]/g, '').slice(0, 80);
+        const fecha = new Date(a.fechaCreacion);
+
         sanitizados.push({
-          id: a.id || `aviso-${Date.now()}-${i}`,
+          id: idLimpio || `aviso-${Date.now()}-${i}`,
           titulo,
-          prioridad: ['urgente', 'atencion', 'avisos', 'informacion', 'tramites', 'examenes'].includes(a.prioridad) ? a.prioridad : 'avisos',
+          prioridad: PRIORIDADES.includes(a.prioridad) ? a.prioridad : 'avisos',
           mensaje,
-          tieneQr: Boolean(a.tieneQr),
-          qrUrl: a.qrUrl ? String(a.qrUrl).trim() : '',
-          qrImagen: a.qrImagen || '',
+          tieneQr: Boolean(a.tieneQr) && Boolean(qrUrl || qrImagen),
+          qrUrl,
+          qrImagen,
           activo: a.activo !== false,
-          fechaCreacion: a.fechaCreacion || new Date().toISOString()
+          fechaCreacion: isNaN(fecha.getTime()) ? new Date().toISOString() : fecha.toISOString()
         });
       }
 
@@ -179,7 +215,7 @@ module.exports = async function handler(req, res) {
       });
     } catch (err) {
       console.error('Error en POST /api/avisos:', err);
-      return res.status(500).json({ ok: false, error: err.message });
+      return res.status(500).json({ ok: false, error: 'Error interno' });
     }
   }
 

@@ -37,6 +37,13 @@ window.SheetAPI = (function () {
    * - Palabras clave: 'hoy', 'solo hoy', 'por hoy', 'mañana'
    * - ISO: 2026-10-08
    */
+  // Devuelve la fecha solo si existe en el calendario (evita que 31/02 se convierta en 03/03)
+  function fechaCalendario(y, m, d) {
+    if (![y, m, d].every(Number.isInteger)) return null;
+    const f = new Date(y, m, d);
+    return f.getFullYear() === y && f.getMonth() === m && f.getDate() === d ? f : null;
+  }
+
   function parsearFechaToken(val, refDate = new Date()) {
     if (!val) return null;
     if (val instanceof Date && !isNaN(val.getTime())) return val;
@@ -94,7 +101,7 @@ window.SheetAPI = (function () {
           anio = parseInt(textoMesMatch[3], 10);
           if (anio < 100) anio += 2000;
         }
-        return new Date(anio, mesIdx, dia);
+        return fechaCalendario(anio, mesIdx, dia);
       }
     }
 
@@ -106,7 +113,7 @@ window.SheetAPI = (function () {
         const y = parseInt(partes[0], 10);
         const m = parseInt(partes[1], 10) - 1;
         const d = parseInt(partes[2], 10);
-        return new Date(y, m, d);
+        return fechaCalendario(y, m, d);
       }
 
       // Formato día / mes / año
@@ -120,7 +127,7 @@ window.SheetAPI = (function () {
       }
 
       if (!isNaN(dia) && !isNaN(mes) && dia >= 1 && dia <= 31 && mes >= 0 && mes <= 11) {
-        return new Date(anio, mes, dia);
+        return fechaCalendario(anio, mes, dia);
       }
     }
 
@@ -141,8 +148,12 @@ window.SheetAPI = (function () {
       // Detectar expresiones como "del 5 al 8/10", "5/10 al 14/10", "5 a 8 de oct"
       const matchRango = s.match(/(?:del?\s+)?(.+?)\s+(?:al?|-)\s+(.+)/i);
       if (matchRango) {
-        const d1 = parsearFechaToken(matchRango[1], refDate);
+        let d1 = parsearFechaToken(matchRango[1], refDate);
         const d2 = parsearFechaToken(matchRango[2], refDate);
+        const soloDia = matchRango[1].trim().match(/^\d{1,2}$/);
+        if (!d1 && soloDia && d2) {
+          d1 = fechaCalendario(d2.getFullYear(), d2.getMonth(), parseInt(soloDia[0], 10));
+        }
         if (d1 || d2) {
           desde = d1 || desde;
           hasta = d2 || hasta;
@@ -467,7 +478,8 @@ window.SheetAPI = (function () {
   // Obtiene las inasistencias docentes (primera hoja)
   async function obtenerDatos() {
     const rows = await cargarFilas(SPREADSHEET_ID, '');
-    if (rows === null) return { docentes: [] };
+    // Sin conexión o planilla inaccesible: devolver null para que la pantalla conserve la última lista válida
+    if (rows === null) return null;
     return procesarFilas(rows);
   }
 

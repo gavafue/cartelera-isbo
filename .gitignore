@@ -13,3 +13,7 @@ Thumbs.db
 *.bak
 *.tmp
 node_modules/
+
+# Resultados de pruebas
+test-results/
+playwright-report/

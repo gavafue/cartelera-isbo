@@ -93,6 +93,8 @@ window.InasistenciasLogic = (function () {
       .replace(/(\d+)\s*(?:ero|er|ro|do|to)\b\.?/gi, '$1° ')
       // Normalizar signos de grado
       .replace(/(\d+)\s*[º°]\s*/g, '$1° ')
+      // Guion pegado entre año y sigla (ej: 2-mk -> 2° mk); los guiones con espacios siguen siendo separadores
+      .replace(/(^|[\s,;\/\+])(\d+)-([a-zA-Z]{1,4})(?=[,\s;\/\+]|$)/g, '$1$2° $3')
       // Separar números pegados a letras si no hay espacio (ej: 3mg -> 3° MG, 3mf -> 3° MF)
       .replace(/(^|[\s,;\/\+\-])(\d+)\s*([a-zA-Z]{1,4})(?=[,\s;\/\+\-]|$)/g, '$1$2° $3');
 
@@ -149,6 +151,24 @@ window.InasistenciasLogic = (function () {
     return unicos.length > 0 ? unicos : [raw.toUpperCase()];
   }
 
+  // Escapa texto de origen externo (planilla, avisos, localStorage) antes de insertarlo con innerHTML
+  function escaparHtml(valor) {
+    return String(valor == null ? '' : valor)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Solo se aceptan imágenes de QR generadas por la app: data URL de imagen o api.qrserver.com por HTTPS
+  function urlImagenSegura(url) {
+    const u = String(url || '').trim();
+    if (/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+\/=]+$/.test(u)) return u;
+    if (/^https:\/\/api\.qrserver\.com\/v1\/create-qr-code\/\?[^\s"'<>]*$/.test(u)) return u;
+    return '';
+  }
+
   // Calcula la duración o badge para mostrar (ej: "Solo por hoy", "Solo por mañana", "Último día", etc.)
   function calcularEstado(docente, fechaObjetivo = new Date()) {
     if (!docente.hasta) {
@@ -184,8 +204,8 @@ window.InasistenciasLogic = (function () {
 
   // Genera iniciales (ej: "Natalia Hernandez" -> "NH")
   function obtenerIniciales(nombre) {
-    if (!nombre) return '??';
-    const partes = nombre.trim().split(/\s+/).filter(Boolean);
+    const partes = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+    if (partes.length === 0) return '??';
     if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
     return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
   }
@@ -848,6 +868,8 @@ window.InasistenciasLogic = (function () {
     exportarAvisosJSON,
     importarAvisosJSON,
     verificarSesionAdmin,
-    obtenerTokenSesion
+    obtenerTokenSesion,
+    escaparHtml,
+    urlImagenSegura
   };
 })();
